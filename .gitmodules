@@ -1,0 +1,15 @@
+[submodule "third/rocksutil"]
+	path = third/rocksutil
+	url = git@github.com:KernelMaker/rocksutil.git
+[submodule "third/pink"]
+	path = third/pink
+	url = git@github.com:Qihoo360/pink.git
+[submodule "third/floyd"]
+	path = third/floyd
+	url = https://github.com/Qihoo360/floyd
+[submodule "third/slash"]
+	path = third/slash
+	url = https://github.com/Qihoo360/slash
+[submodule "third/nemo-rocksdb"]
+	path = third/nemo-rocksdb
+	url = git@github.com:Qihoo360/nemo-rocksdb.git
