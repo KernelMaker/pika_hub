@@ -19,7 +19,7 @@ ifeq ($(__PERF), 1)
 #CXXFLAGS = -Wall -W -DDEBUG -g -O0 -D__XDEBUG__ -fPIC -Wno-unused-function -std=c++11
 	CXXFLAGS = -O0 -g -pipe -fPIC -W -DDEBUG -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wno-unused-parameter -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-redundant-decls -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX
 else
-	CXXFLAGS = -O2 -g -gstabs+ -pg -pipe -fPIC -W -DNDEBUG -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wno-unused-parameter -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -Wno-redundant-decls -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX
+	CXXFLAGS = -O2 -g -gstabs+ -pg -pipe -fPIC -W -DNDEBUG -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wno-unused-parameter -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -Wno-redundant-decls -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX -DROCKSUTIL_PTHREAD_ADAPTIVE_MUTEX
 endif
 
 SRC_PATH = ./src/
@@ -54,40 +54,42 @@ PIKA_HUB = pika_hub
 
 
 INCLUDE_PATH = -I./ \
-							 -I$(NEMODB_PATH)/ \
-							 -I$(NEMODB_PATH)/rocksdb \
-							 -I$(NEMODB_PATH)/rocksdb/include \
 							 -I$(SLASH_PATH)/ \
 							 -I$(PINK_PATH)/ \
 							 -I$(FLOYD_PATH)/ \
+							 -I$(NEMODB_PATH)/ \
+							 -I$(NEMODB_PATH)/rocksdb \
+							 -I$(NEMODB_PATH)/rocksdb/include \
 							 -I$(ROCKSUTIL_PATH)/ \
-							 -I$(ROCKSUTIL_PATH)/include
+							 -I$(ROCKSUTIL_PATH)/include 
 
 LIB_PATH = -L./ \
 					 -L$(FLOYD_PATH)/floyd/lib/ \
 					 -L$(SLASH_PATH)/slash/lib/ \
 					 -L$(PINK_PATH)/pink/lib/ \
 					 -L$(NEMODB_PATH)/output/lib/ \
-					 -L$(ROCKSUTIL_PATH)/
+					 -L$(ROCKSUTIL_PATH)
 
 LIBS = -lpthread \
 			 -lprotobuf \
-			 -lslash \
+			 -lfloyd \
 			 -lpink \
+			 -lslash \
 			 -lz \
 			 -lbz2 \
-			 -lsnappy \
-			 -lrt \
-			 -lfloyd \
 			 -lnemodb \
 			 -lrocksdb \
+			 -lsnappy \
+			 -lrt \
+			 -lcrypto \
+			 -lssl \
 			 -lrocksutil
 
 FLOYD = $(FLOYD_PATH)/floyd/lib/libfloyd.a
 NEMODB = $(NEMODB_PATH)/output/lib/libnemodb.a
 PINK = $(PINK_PATH)/pink/lib/libpink.a
 SLASH = $(SLASH_PATH)/slash/lib/libslash.a
-ROCKSUTIL = $(ROCKSUTIL_PATH)/librocksutil.a
+ROCKSUTIL = $(ROCKSUTIL_PATH)/rocksutil/librocksutil.a
 
 .PHONY: all clean distclean
 
