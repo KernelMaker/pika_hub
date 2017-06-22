@@ -1,4 +1,7 @@
 #include "pika_hub_server.h"
+#include "rocksutil/auto_roll_logger.h"
+
+extern std::shared_ptr<rocksutil::Logger> g_log;
 
 int PikaHubServerConn::DealMessage() {
   strcpy(wbuf_, "+OK\r\n");
@@ -28,7 +31,7 @@ PikaHubServer::~PikaHubServer() {
 slash::Status PikaHubServer::Start() {
   slash::Status result = floyd_->Start();
   if (!result.ok()) {
-    std::cout << "Floyd start failed" << std::endl;
+    rocksutil::Fatal(g_log, "Floyd start failed: %s", result.ToString().c_str());
     return result;
   }
 
@@ -36,7 +39,7 @@ slash::Status PikaHubServer::Start() {
   if (ret != 0) {
     return slash::Status::Corruption("Start server error");
   }
-  std::cout << "Started" << std::endl;
+  rocksutil::Info(g_log, "Started");
   server_mutex_.Lock();
   server_mutex_.Lock();
   server_mutex_.Unlock();

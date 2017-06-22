@@ -10,7 +10,6 @@
 #include "slash/include/env.h"
 #include "rocksutil/mutexlock.h"
 //#include "slash/include/slash_status.h"
-using namespace rocksutil;
 
 class PikaHubServer;
 class PikaHubServerConn;
@@ -77,7 +76,7 @@ class PikaHubServer {
   PikaHubServerConnFactory* conn_factory_;
   pink::ServerThread* server_thread_;
 
-  port::Mutex server_mutex_;
+  rocksutil::port::Mutex server_mutex_;
 
   std::atomic<uint64_t> last_query_num_;
   std::atomic<uint64_t> query_num_;

@@ -8,6 +8,7 @@
 #include "pika_hub_server.h"
 
 #include "slash/include/slash_status.h"
+#include "rocksutil/auto_roll_logger.h"
 
 void Usage();
 const struct option long_options[] = {
@@ -22,6 +23,7 @@ const struct option long_options[] = {
 const char* short_options = "s:i:p:d:l:";
 
 PikaHubServer* g_pika_hub_server;
+std::shared_ptr<rocksutil::Logger> g_log;
 
 void IntSigHandle(int sig) {
   printf ("Catch Signal %d, cleanup...\n", sig);
@@ -35,6 +37,16 @@ void SignalSetup() {
   }
   signal(SIGQUIT, &IntSigHandle);
   signal(SIGTERM, &IntSigHandle);
+}
+
+void InitLog(const std::string& log_path) {
+  rocksutil::Status s = CreateLogger(log_path, &g_log);
+  Header(g_log, "-------------------------------------------------------------------");
+  Header(g_log, "|                                                                 |");
+  Header(g_log, "| This is the header of log, it will be printed in the header of  |");
+  Header(g_log, "| every log file.                                                 |");
+  Header(g_log, "|                                                                 |");
+  Header(g_log, "-------------------------------------------------------------------");
 }
 
 int main(int argc, char** argv) {
@@ -79,6 +91,7 @@ int main(int argc, char** argv) {
   options.Dump();
 
   SignalSetup();
+  InitLog("./info_log");
 
   g_pika_hub_server = new PikaHubServer(server_port, options);
   slash::Status s = g_pika_hub_server->Start();
