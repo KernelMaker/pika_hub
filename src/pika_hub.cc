@@ -39,16 +39,6 @@ void SignalSetup() {
   signal(SIGTERM, &IntSigHandle);
 }
 
-void InitLog(const std::string& log_path) {
-  rocksutil::Status s = CreateLogger(log_path, &g_log);
-  Header(g_log, "-------------------------------------------------------------------");
-  Header(g_log, "|                                                                 |");
-  Header(g_log, "| This is the header of log, it will be printed in the header of  |");
-  Header(g_log, "| every log file.                                                 |");
-  Header(g_log, "|                                                                 |");
-  Header(g_log, "-------------------------------------------------------------------");
-}
-
 int main(int argc, char** argv) {
   if (argc < 12) {
     printf ("Usage:\n"
@@ -57,7 +47,7 @@ int main(int argc, char** argv) {
     exit(0);
   }
 
-  floyd::Options options;
+  Options options;
 
   int ch, longindex;
   int server_port = 9221;
@@ -66,7 +56,7 @@ int main(int argc, char** argv) {
                            &longindex)) >= 0) {
     switch (ch) {
       case 's':
-        options.SetMembers(std::string(optarg));
+        options.str_members = std::string(optarg);
         break;
       case 'i':
         options.local_ip = optarg;
@@ -88,17 +78,18 @@ int main(int argc, char** argv) {
     }
   }
 
-  options.Dump();
+  options.port = server_port;
+  options.info_log_path = "./info_log";
 
   SignalSetup();
-  InitLog("./info_log");
 
-  g_pika_hub_server = new PikaHubServer(server_port, options);
+  g_pika_hub_server = new PikaHubServer(options);
   slash::Status s = g_pika_hub_server->Start();
   if (!s.ok()) {
     printf("Start Server error\n");
     return -1;
   }
+  g_pika_hub_server->DumpOptions();
 
   printf ("Will Stop Server...\n");
   delete g_pika_hub_server;
