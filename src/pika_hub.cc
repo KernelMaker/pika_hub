@@ -84,12 +84,12 @@ int main(int argc, char** argv) {
   SignalSetup();
 
   g_pika_hub_server = new PikaHubServer(options);
+  g_pika_hub_server->DumpOptions();
   slash::Status s = g_pika_hub_server->Start();
   if (!s.ok()) {
     printf("Start Server error\n");
     return -1;
   }
-  g_pika_hub_server->DumpOptions();
 
   printf ("Will Stop Server...\n");
   delete g_pika_hub_server;

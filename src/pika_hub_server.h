@@ -2,45 +2,28 @@
 #define PIKA_HUB_SERVER_H
 
 #include <atomic>
-#include "floyd/include/floyd.h"
 
-#include "pink/include/redis_conn.h"
+#include "floyd/include/floyd.h"
 #include "pink/include/server_thread.h"
 
 #include "rocksutil/mutexlock.h"
-#include "rocksutil/env.h"
+
 #include "pika_hub_options.h"
+#include "pika_hub_client_conn.h"
 
 class PikaHubServer;
-class PikaHubServerConn;
-class PikaHubServerConnFactory;
 
 class PikaHubServerHandler : public pink::ServerHandle {
  public:
-  explicit PikaHubServerHandler() {};
+  explicit PikaHubServerHandler(PikaHubServer* pika_hub_server)
+    : pika_hub_server_(pika_hub_server) {
+    };
   virtual ~PikaHubServerHandler() {};
-};
 
-class PikaHubServerConn : public pink::RedisConn {
- public:
-  PikaHubServerConn(int fd, const std::string& ip_port,
-      pink::ServerThread* server_thread) :
-    pink::RedisConn(fd, ip_port, server_thread) {};
-  virtual ~PikaHubServerConn() {}
+  virtual void CronHandle() const override; 
 
-  virtual int DealMessage() override;
-};
-
-class PikaHubServerConnFactory : public pink::ConnFactory {
- public:
-  explicit PikaHubServerConnFactory() {};
-
-  virtual pink::PinkConn *NewPinkConn(int connfd,
-      const std::string& ip_port,
-      pink::ServerThread* server_thread,
-      void* worker_private_data) const override {
-    return new PikaHubServerConn(connfd, ip_port, server_thread);
-  }
+ private:
+  PikaHubServer* pika_hub_server_;
 };
 
 class PikaHubServer {
@@ -50,18 +33,23 @@ class PikaHubServer {
   slash::Status Start();
 
   uint64_t last_qps() {
-    return last_qps_.load();
+    return statistic_data_.last_qps.load();
+  }
+  uint64_t query_num() {
+    return statistic_data_.query_num.load();
   }
 
   void PlusQueryNum() {
-    query_num_++;
+    statistic_data_.query_num++;
   }
 
   void ResetLastSecQueryNum() {
     uint64_t cur_time_us = env_->NowMicros();
-    last_qps_ = (query_num_ - last_query_num_) * 1000000 / (cur_time_us - last_time_us_ + 1);
-    last_query_num_ = query_num_.load();
-    last_time_us_ = cur_time_us;
+    statistic_data_.last_qps = (statistic_data_.query_num -
+        statistic_data_.last_query_num) *
+      1000000 / (cur_time_us - statistic_data_.last_time_us + 1);
+    statistic_data_.last_query_num = statistic_data_.query_num.load();
+    statistic_data_.last_time_us = cur_time_us;
   }
 
   void Unlock() {
@@ -72,22 +60,31 @@ class PikaHubServer {
     options_.Dump(options_.info_log.get());
   }
 
-
  private:
-  floyd::Floyd* floyd_;
   rocksutil::Env* env_;
   const Options options_;
 
+  struct StatisticData {
+    StatisticData(rocksutil::Env* env):
+      last_query_num(0),
+      query_num(0),
+      last_qps(0),
+      last_time_us(env->NowMicros()) {
+    };
+    std::atomic<uint64_t> last_query_num;
+    std::atomic<uint64_t> query_num;
+    std::atomic<uint64_t> last_qps;
+    std::atomic<uint64_t> last_time_us;
+  };
+  StatisticData statistic_data_;
+
+  floyd::Floyd* floyd_;
+
   PikaHubServerHandler* server_handler_;
-  PikaHubServerConnFactory* conn_factory_;
+  PikaHubClientConnFactory* conn_factory_;
   pink::ServerThread* server_thread_;
 
   rocksutil::port::Mutex server_mutex_;
-
-  std::atomic<uint64_t> last_query_num_;
-  std::atomic<uint64_t> query_num_;
-  std::atomic<uint64_t> last_qps_;
-  std::atomic<uint64_t> last_time_us_;
 };
 
 #endif

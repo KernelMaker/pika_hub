@@ -1,13 +1,6 @@
 #include "pika_hub_server.h"
 #include "rocksutil/auto_roll_logger.h"
 
-int PikaHubServerConn::DealMessage() {
-  strcpy(wbuf_, "+OK\r\n");
-  wbuf_len_ = 5;
-  set_is_reply(true);
-  return 0;
-}
-
 Options SanitizeOptions(const Options& options) {
   Options result(options);
   if (result.info_log == nullptr) {
@@ -29,17 +22,19 @@ floyd::Options BuildFloydOptions(const Options& options) {
   return result;
 }
 
+void PikaHubServerHandler::CronHandle() const {
+  pika_hub_server_->ResetLastSecQueryNum();
+}
+
 PikaHubServer::PikaHubServer(const Options& options)
   : env_(options.env),
     options_(SanitizeOptions(options)),
-    last_query_num_(0),
-    query_num_(0),
-    last_time_us_(env_->NowMicros()) {
+    statistic_data_(options.env) {
   
   floyd::Floyd::Open(BuildFloydOptions(options), &floyd_);
-  conn_factory_ = new PikaHubServerConnFactory();
-  server_handler_ = new PikaHubServerHandler();
-  server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 0, server_handler_);
+  conn_factory_ = new PikaHubClientConnFactory();
+  server_handler_ = new PikaHubServerHandler(this);
+  server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000, server_handler_);
 }
 
 PikaHubServer::~PikaHubServer() {
