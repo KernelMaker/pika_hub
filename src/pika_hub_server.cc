@@ -35,10 +35,12 @@ PikaHubServer::PikaHubServer(const Options& options)
   conn_factory_ = new PikaHubClientConnFactory();
   server_handler_ = new PikaHubServerHandler(this);
   server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000, server_handler_);
+  binlog_writer_ = CreateBinlogWriter(options_.info_log_path, options.env);
 }
 
 PikaHubServer::~PikaHubServer() {
   server_thread_->StopThread();
+  delete binlog_writer_;
   delete server_thread_;
   delete conn_factory_;
   delete server_handler_;
