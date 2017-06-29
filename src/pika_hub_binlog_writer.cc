@@ -1,4 +1,5 @@
 #include "pika_hub_binlog_writer.h"
+#include "pika_hub_common.h"
 #include "rocksutil/file_reader_writer.h"
 
 rocksutil::Status BinlogWriter::Append(const std::string& str) {

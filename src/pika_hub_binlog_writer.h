@@ -5,9 +5,6 @@
 #include "rocksutil/mutexlock.h"
 #include "rocksutil/env.h"
 
-const std::string kBinlogPrefix = "binlog_";
-const int32_t kMaxBinlogFileSize = 100 * 1024 * 1024;
-
 class BinlogWriter {
  public:
    BinlogWriter(rocksutil::log::Writer* writer,

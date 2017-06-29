@@ -11,6 +11,7 @@
 #include "pika_hub_options.h"
 #include "pika_hub_client_conn.h"
 #include "pika_hub_binlog_writer.h"
+#include "pika_hub_binlog_reader.h"
 
 class PikaHubServer;
 
@@ -42,6 +43,10 @@ class PikaHubServer {
 
   BinlogWriter* binlog_writer() {
     return binlog_writer_;
+  }
+
+  BinlogReader* binlog_reader() {
+    return binlog_reader_;
   }
 
   void PlusQueryNum() {
@@ -90,6 +95,7 @@ class PikaHubServer {
   pink::ServerThread* server_thread_;
 
   BinlogWriter* binlog_writer_;
+  BinlogReader* binlog_reader_;
 
   rocksutil::port::Mutex server_mutex_;
 };
