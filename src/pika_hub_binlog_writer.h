@@ -11,10 +11,15 @@ class BinlogWriter {
       uint64_t number, const std::string& log_path,
       rocksutil::Env* env)
    : writer_(writer), log_path_(log_path),
-   number_(number), env_(env) {
+     number_(number), env_(env) {
    };
 
+   uint64_t GetOffsetInFile(); 
    rocksutil::Status Append(const std::string& str);
+
+   uint64_t number() {
+     return number_;
+   }
    
  private:
    void RollFile();
@@ -22,10 +27,9 @@ class BinlogWriter {
    std::string log_path_;
    uint64_t number_;
    rocksutil::Env* env_;
-   rocksutil::port::Mutex mutex_;
 };
 
 extern BinlogWriter* CreateBinlogWriter(const std::string& log_path,
-    rocksutil::Env* env);
+    uint64_t number, rocksutil::Env* env);
   
 #endif

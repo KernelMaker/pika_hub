@@ -2,25 +2,18 @@
 #include "pika_hub_common.h"
 #include "rocksutil/file_reader_writer.h"
 
+uint64_t BinlogWriter::GetOffsetInFile() {
+   return writer_->file()->GetFileSize();
+}
+
 rocksutil::Status BinlogWriter::Append(const std::string& str) {
-  rocksutil::MutexLock l(&mutex_);
-  if (writer_->file()->GetFileSize() >= kMaxBinlogFileSize) {
+  /*
+   * thread safe is guaranteed by the caller (BinlogManager)
+   */
+  if (GetOffsetInFile() >= kMaxBinlogFileSize) {
     RollFile();
   }
   return writer_->AddRecord(str);
-}
-
-void AbstractFileAndUpdate(const std::string& filename,
-    uint64_t* largest) {
-  std::string prefix = filename.substr(0, kBinlogPrefix.size());
-  if (prefix == kBinlogPrefix) {
-    char* ptr;
-    uint64_t num =
-        strtoul(filename.data() + kBinlogPrefix.size(), &ptr, 10);
-    if (num > *largest) {
-      *largest = num;
-    }
-  }
 }
 
 rocksutil::log::Writer* CreateWriter(rocksutil::Env* env,
@@ -54,23 +47,9 @@ void BinlogWriter::RollFile() {
 }
 
 BinlogWriter* CreateBinlogWriter(const std::string& log_path,
-    rocksutil::Env* env) {
-  std::vector<std::string> result;
-  rocksutil::Status s = env->GetChildren(log_path, &result);
-
-  if (!s.ok()) {
-    return nullptr;
-  }
-  
-  uint64_t largest = 0;
-  for(auto& file : result) {
-    AbstractFileAndUpdate(file, &largest);
-  }
-
-  largest++;
-  
+    uint64_t number, rocksutil::Env* env) {
   rocksutil::log::Writer* writer = CreateWriter(env,
-      log_path, largest);
+      log_path, number);
   return (writer == nullptr ?
-      nullptr : new BinlogWriter(writer, largest, log_path, env));
+      nullptr : new BinlogWriter(writer, number, log_path, env));
 }

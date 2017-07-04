@@ -3,6 +3,8 @@
 #include "rocksutil/file_reader_writer.h"
 #include "rocksutil/log_reader.h"
 
+#include <iostream>
+
 rocksutil::Status BinlogReader::ReadRecord(rocksutil::Slice* slice,
     std::string* scratch) {
   bool ret = true;
@@ -12,6 +14,7 @@ rocksutil::Status BinlogReader::ReadRecord(rocksutil::Slice* slice,
       offset_ += slice->size();
       return rocksutil::Status::OK();
     } else {
+      std::cout << status_.ToString() << std::endl;
       if (IsEOF()) {
         if (TryToRollFile()) {
           continue;

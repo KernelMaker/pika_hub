@@ -10,8 +10,7 @@
 
 #include "pika_hub_options.h"
 #include "pika_hub_client_conn.h"
-#include "pika_hub_binlog_writer.h"
-#include "pika_hub_binlog_reader.h"
+#include "pika_hub_binlog_manager.h"
 
 class PikaHubServer;
 
@@ -41,12 +40,15 @@ class PikaHubServer {
     return statistic_data_.query_num.load();
   }
 
-  BinlogWriter* binlog_writer() {
-    return binlog_writer_;
-  }
-
-  BinlogReader* binlog_reader() {
-    return binlog_reader_;
+//  BinlogWriter* binlog_writer() {
+//    return binlog_writer_;
+//  }
+//
+//  BinlogReader* binlog_reader() {
+//    return binlog_reader_;
+//  }
+  BinlogManager* binlog_manager() {
+    return binlog_manager_;
   }
 
   void PlusQueryNum() {
@@ -94,8 +96,9 @@ class PikaHubServer {
   PikaHubClientConnFactory* conn_factory_;
   pink::ServerThread* server_thread_;
 
-  BinlogWriter* binlog_writer_;
-  BinlogReader* binlog_reader_;
+//  BinlogWriter* binlog_writer_;
+//  BinlogReader* binlog_reader_;
+  BinlogManager* binlog_manager_;
 
   rocksutil::port::Mutex server_mutex_;
 };
