@@ -3,37 +3,40 @@
 
 #include "pika_hub_binlog_writer.h"
 #include "pika_hub_binlog_reader.h"
+#include "rport/port.h"
 #include <map>
 
 class BinlogManager {
  public:
    BinlogManager(const std::string& log_path,
-      rocksutil::Env* env, BinlogWriter* writer,
+      rocksutil::Env* env,
       uint64_t number)
    : log_path_(log_path), env_(env),
      number_(number), offset_(0),
-     writer_(writer) {
+     cv_(&mutex_) {
    };
 
-   ~BinlogManager() {
-     delete writer_;
-     for(auto& reader : readers_) {
-       delete reader.second;
-     }
+   BinlogWriter* AddWriter();
+   BinlogReader* AddReader(uint64_t number, uint64_t offset);
+
+   rocksutil::port::Mutex* mutex() {
+     return &mutex_;
    }
 
-   rocksutil::Status Append(const std::string& str);
+   rocksutil::port::CondVar* cv() {
+     return &cv_;
+   }
 
-   void UpdateOffset();
+   void UpdateWriterOffset(uint64_t number, uint64_t offset);
+   void GetWriterOffset(uint64_t* number, uint64_t* offset);
    
  private:
    std::string log_path_;
    rocksutil::Env* env_;
    uint64_t number_;
    uint64_t offset_;
-   BinlogWriter* writer_;
-   std::map<std::string, BinlogReader*> readers_;
    rocksutil::port::Mutex mutex_;
+   rocksutil::port::CondVar cv_;
 };
 
 extern BinlogManager* CreateBinlogManager(const std::string& log_path,

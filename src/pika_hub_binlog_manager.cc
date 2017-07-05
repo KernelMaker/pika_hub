@@ -1,23 +1,6 @@
 #include "pika_hub_binlog_manager.h"
 #include "pika_hub_common.h"
 
-rocksutil::Status BinlogManager::Append(const std::string& str) {
-  rocksutil::MutexLock l(&mutex_);
-  rocksutil::Status s = writer_->Append(str);
-  if (s.ok()) {
-    UpdateOffset();
-  }
-  return s;
-}
-
-void BinlogManager::UpdateOffset() {
-  /*
-   * thread safe is guaranteed by the caller (BinlogManager)
-   */
-  number_ = writer_->number();
-  offset_ = writer_->GetOffsetInFile();
-}
-
 void AbstractFileAndUpdate(const std::string& filename,
     uint64_t* largest) {
   std::string prefix = filename.substr(0, kBinlogPrefix.size());
@@ -30,6 +13,30 @@ void AbstractFileAndUpdate(const std::string& filename,
     }
   }
 }
+
+BinlogWriter* BinlogManager::AddWriter() {
+  return CreateBinlogWriter(log_path_, number_,
+      env_, this);
+}
+
+BinlogReader* BinlogManager::AddReader(uint64_t number,
+    uint64_t offset) {
+  return CreateBinlogReader(log_path_, env_,
+      number, offset, this);
+}
+
+void BinlogManager::UpdateWriterOffset(uint64_t number,
+    uint64_t offset) {
+  number_ = number;
+  offset_ = offset;
+}
+
+void BinlogManager::GetWriterOffset(uint64_t* number,
+    uint64_t* offset) {
+  *number = number_;
+  *offset = offset_;
+}
+
 
 BinlogManager* CreateBinlogManager(const std::string& log_path,
     rocksutil::Env* env) {
@@ -46,8 +53,6 @@ BinlogManager* CreateBinlogManager(const std::string& log_path,
   }
 
   largest++;
-  
-  BinlogWriter* writer = CreateBinlogWriter(log_path, largest, env);
 
-  return new BinlogManager(log_path, env, writer, largest);
+  return new BinlogManager(log_path, env, largest);
 }

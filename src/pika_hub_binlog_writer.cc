@@ -1,19 +1,21 @@
 #include "pika_hub_binlog_writer.h"
 #include "pika_hub_common.h"
 #include "rocksutil/file_reader_writer.h"
+#include "pika_hub_binlog_manager.h"
 
 uint64_t BinlogWriter::GetOffsetInFile() {
    return writer_->file()->GetFileSize();
 }
 
 rocksutil::Status BinlogWriter::Append(const std::string& str) {
-  /*
-   * thread safe is guaranteed by the caller (BinlogManager)
-   */
+  rocksutil::MutexLock l(manager_->mutex());
   if (GetOffsetInFile() >= kMaxBinlogFileSize) {
     RollFile();
   }
-  return writer_->AddRecord(str);
+  rocksutil::Status s = writer_->AddRecord(str);
+  manager_->UpdateWriterOffset(number_, GetOffsetInFile());
+  manager_->cv()->SignalAll();
+  return s;
 }
 
 rocksutil::log::Writer* CreateWriter(rocksutil::Env* env,
@@ -47,9 +49,11 @@ void BinlogWriter::RollFile() {
 }
 
 BinlogWriter* CreateBinlogWriter(const std::string& log_path,
-    uint64_t number, rocksutil::Env* env) {
+    uint64_t number, rocksutil::Env* env,
+    BinlogManager* manager) {
   rocksutil::log::Writer* writer = CreateWriter(env,
       log_path, number);
   return (writer == nullptr ?
-      nullptr : new BinlogWriter(writer, number, log_path, env));
+      nullptr : new BinlogWriter(writer, number, log_path, env,
+                      manager));
 }

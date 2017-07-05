@@ -1,25 +1,48 @@
 #include "pika_hub_binlog_reader.h"
 #include "pika_hub_common.h"
+#include "pika_hub_binlog_manager.h"
 #include "rocksutil/file_reader_writer.h"
 #include "rocksutil/log_reader.h"
-
 #include <iostream>
+
+void BinlogReader::StopRead() {
+ should_exit_ = true;
+ manager_->cv()->SignalAll();
+}
 
 rocksutil::Status BinlogReader::ReadRecord(rocksutil::Slice* slice,
     std::string* scratch) {
   bool ret = true;
+  uint64_t writer_number = 0;
+  uint64_t writer_offset = 0;
+  uint64_t reader_offset = 0;
   while (true) {
     ret = reader_->ReadRecord(slice, scratch);
     if (ret) {
       offset_ += slice->size();
       return rocksutil::Status::OK();
     } else {
-      std::cout << status_.ToString() << std::endl;
-      if (IsEOF()) {
-        if (TryToRollFile()) {
-          continue;
-        } else {
-          return rocksutil::Status::NotFound("No More Record");
+      if (status_.ok()) {
+        manager_->mutex()->Lock();
+        manager_->GetWriterOffset(&writer_number, &writer_offset);
+        reader_offset = reader_->EndOfBufferOffset();
+        std::cout << writer_number << " " << writer_offset << " " <<
+          number_ << " " << reader_offset << std::endl;
+        while(number_ == writer_number && reader_offset == writer_offset) {
+          manager_->cv()->Wait();
+          if (should_exit_) {
+            manager_->mutex()->Unlock();
+            return rocksutil::Status::Corruption("Exit");
+          }
+          manager_->GetWriterOffset(&writer_number, &writer_offset);
+          reader_offset = reader_->EndOfBufferOffset();
+        }
+        reader_->UnmarkEOF();
+        manager_->mutex()->Unlock();
+        rocksutil::Status s = env_->FileExists(log_path_ + "/" + kBinlogPrefix +
+              std::to_string(number_+1));
+        if (s.ok()) {
+          TryToRollFile();
         }
       } else {
         return status_;
@@ -64,10 +87,11 @@ bool BinlogReader::TryToRollFile() {
 }
 
 BinlogReader* CreateBinlogReader(const std::string& log_path,
-    rocksutil::Env* env, uint64_t number, uint64_t offset) {
+    rocksutil::Env* env, uint64_t number, uint64_t offset,
+    BinlogManager* manager) {
   
   BinlogReader* binlog_reader = new BinlogReader(nullptr, log_path, number,
-                                      offset, env);
+                                      offset, env, manager);
 
   rocksutil::log::Reader* reader = CreateReader(env,
       log_path, number, offset, binlog_reader->reporter());

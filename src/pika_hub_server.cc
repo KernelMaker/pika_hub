@@ -24,19 +24,7 @@ floyd::Options BuildFloydOptions(const Options& options) {
 
 void PikaHubServerHandler::CronHandle() const {
   pika_hub_server_->ResetLastSecQueryNum();
-
-//  std::string scratch;
-//  rocksutil::Slice record;
-//  rocksutil::Status s = pika_hub_server_->binlog_reader()->
-//                          ReadRecord(&record, &scratch);
-//  if (s.ok()) {
-//    std::cout << "Read: " <<
-//      std::string(record.data(), record.size()) << std::endl;
-//  } else {
-//    std::cout << "Read Error: " << s.ToString() << std::endl;
-//  }
-//
-  pika_hub_server_->binlog_manager()->Append("Hello World");
+  pika_hub_server_->binlog_writer()->Append("Hello World");
 }
 
 PikaHubServer::PikaHubServer(const Options& options)
@@ -48,14 +36,15 @@ PikaHubServer::PikaHubServer(const Options& options)
   conn_factory_ = new PikaHubClientConnFactory();
   server_handler_ = new PikaHubServerHandler(this);
   server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000, server_handler_);
-//  binlog_writer_ = CreateBinlogWriter(options_.info_log_path, options.env);
-//  binlog_reader_ = CreateBinlogReader(options_.info_log_path, options.env, 1, 0);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env);
+  binlog_writer_ = binlog_manager_->AddWriter();
+  binlog_sender_ = nullptr;
 }
 
 PikaHubServer::~PikaHubServer() {
   server_thread_->StopThread();
-//  delete binlog_writer_;
+  delete binlog_sender_;
+  delete binlog_writer_;
   delete binlog_manager_;
   delete server_thread_;
   delete conn_factory_;
@@ -75,6 +64,15 @@ slash::Status PikaHubServer::Start() {
     return slash::Status::Corruption("Start server error");
   }
   rocksutil::Info(options_.info_log, "Started");
+  sleep(1);
+  BinlogReader* reader = binlog_manager_->AddReader(1, 0);
+  if (reader != nullptr) {
+    binlog_sender_ = new BinlogSender("127.0.0.1", 9221, options_.info_log,
+                          reader);
+    binlog_sender_->StartThread();
+  } else {
+    rocksutil::Info(options_.info_log, "Create Reader Failed");
+  }
   server_mutex_.Lock();
   server_mutex_.Lock();
   server_mutex_.Unlock();
