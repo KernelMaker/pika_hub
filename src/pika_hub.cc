@@ -7,22 +7,31 @@
 #include <signal.h>
 
 #include "src/pika_hub_server.h"
-
-
-void Usage();
-const struct option long_options[] = {
-  {"servers", required_argument, NULL, 's'},
-  {"local_ip", required_argument, NULL, 'i'},
-  {"local_port", required_argument, NULL, 'p'},
-  {"sdk_port", required_argument, NULL, 'P'},
-  {"data_path", required_argument, NULL, 'd'},
-  {"log_path", required_argument, NULL, 'l'},
-  {NULL, 0, NULL, 0}, };
-
-const char* short_options = "s:i:p:d:l:";
+#include "src/pika_hub_conf.h"
 
 PikaHubServer* g_pika_hub_server;
-std::shared_ptr<rocksutil::Logger> g_log;
+PikaHubConf* g_pika_hub_conf;
+
+static void Usage() {
+  fprintf(stderr,
+      "usage: pika_hub [-h] [-c conf/file]\n"
+      "\t-h               -- show this help\n"
+      "\t-c conf/file     -- config file \n"
+      "  example: ./output/bin/pika_hub -c ./conf/pika_hub.conf\n");
+}
+
+static void PikaHubConfInit(const std::string& path) {
+  printf("path : %s\n", path.c_str());
+  g_pika_hub_conf = new PikaHubConf(path);
+  if (g_pika_hub_conf->Load() != 0) {
+    fprintf(stderr, "pika_hub load conf error\n");
+    exit(-1);
+  }
+  printf("-----------pika_hub config list----------\n");
+  g_pika_hub_conf->DumpConf();
+  printf("-----------pika_hub config end----------\n");
+}
+
 
 void IntSigHandle(int sig) {
   printf("Catch Signal %d, cleanup...\n", sig);
@@ -39,46 +48,45 @@ void SignalSetup() {
 }
 
 int main(int argc, char** argv) {
-  if (argc < 12) {
-    printf("Usage:\n"
-      " ./main --servers ip1:port1,ip2:port2 --local_ip ip --local_port port\n"
-      "   --sdk_port sdk_port --data_path data_path --log_path log_path\n");
-    exit(0);
+  if (argc < 2) {
+    Usage();
+    exit(-1);
   }
 
-  Options options;
-
-  int ch, longindex;
-  int server_port = 9221;
-
-  while ((ch = getopt_long(argc, argv, short_options, long_options,
-                           &longindex)) >= 0) {
-    switch (ch) {
-      case 's':
-        options.str_members = std::string(optarg);
+  bool path_opt = false;
+  char c;
+  char path[1024];
+  while (-1 != (c = getopt(argc, argv, "c:h"))) {
+    switch (c) {
+      case 'c':
+        snprintf(path, sizeof(path), "%s", optarg);
+        path_opt = true;
         break;
-      case 'i':
-        options.local_ip = optarg;
-        break;
-      case 'p':
-        options.local_port = atoi(optarg);
-        break;
-      case 'P':
-        server_port = atoi(optarg);
-        break;
-      case 'd':
-        options.data_path = optarg;
-        break;
-      case 'l':
-        options.log_path = optarg;
-        break;
+      case 'h':
+        Usage();
+        return 0;
       default:
-        break;
+        Usage();
+        return 0;
     }
   }
 
-  options.port = server_port;
-  options.info_log_path = "./info_log";
+  if (path_opt == false) {
+    fprintf(stderr, "Please specify the conf file path\n");
+    Usage();
+    exit(-1);
+  }
+
+  PikaHubConfInit(path);
+
+  Options options;
+  options.str_members = g_pika_hub_conf->floyd_servers();
+  options.local_ip = g_pika_hub_conf->floyd_local_ip();
+  options.local_port = g_pika_hub_conf->floyd_local_port();
+  options.data_path = g_pika_hub_conf->floyd_data_path();
+  options.log_path = g_pika_hub_conf->floyd_log_path();
+  options.port = g_pika_hub_conf->sdk_port();
+  options.info_log_path = g_pika_hub_conf->log_path();
 
   SignalSetup();
 

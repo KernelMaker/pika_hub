@@ -106,7 +106,7 @@ all: $(PIKA_HUB)
 	mkdir $(OUTPUT)/lib
 #	cp -r $(SO_PATH)/*  $(OUTPUT)/lib
 	mv $(PIKA_HUB) $(OUTPUT)/bin/
-#	cp -r conf $(OUTPUT)
+	cp -r conf $(OUTPUT)
 	@echo "Success, go, go, go..."
 
 
