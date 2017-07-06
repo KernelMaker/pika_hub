@@ -6,9 +6,11 @@
 #ifndef SRC_PIKA_HUB_SERVER_H_
 #define SRC_PIKA_HUB_SERVER_H_
 
-#include <atomic>
+#include <map>
+#include <string>
 
 #include "src/pika_hub_options.h"
+#include "src/pika_hub_common.h"
 #include "src/pika_hub_client_conn.h"
 #include "src/pika_hub_binlog_manager.h"
 #include "src/pika_hub_binlog_sender.h"
@@ -25,6 +27,19 @@ class PikaHubServerHandler : public pink::ServerHandle {
   virtual ~PikaHubServerHandler() {}
 
   virtual void CronHandle() const override;
+
+ private:
+  PikaHubServer* pika_hub_server_;
+};
+
+class PikaHubInnerServerHandler : public pink::ServerHandle {
+ public:
+  explicit PikaHubInnerServerHandler(PikaHubServer* pika_hub_server)
+    : pika_hub_server_(pika_hub_server) {
+    }
+  virtual ~PikaHubInnerServerHandler() {}
+
+  virtual bool AccessHandle(std::string& ip) const override;
 
  private:
   PikaHubServer* pika_hub_server_;
@@ -71,6 +86,7 @@ class PikaHubServer {
   void DumpOptions() const {
     options_.Dump(options_.info_log.get());
   }
+  bool IsValidClient(const std::string& ip);
 
  private:
   rocksutil::Env* env_;
@@ -93,12 +109,16 @@ class PikaHubServer {
   floyd::Floyd* floyd_;
 
   PikaHubServerHandler* server_handler_;
+  PikaHubInnerServerHandler* inner_server_handler_;
   PikaHubClientConnFactory* conn_factory_;
   pink::ServerThread* server_thread_;
+  pink::ServerThread* inner_server_thread_;
 
   BinlogManager* binlog_manager_;
   BinlogWriter* binlog_writer_;
   BinlogSender* binlog_sender_;
+  bool CheckPikaServers();
+  std::map<std::string, PikaStatus> pika_servers_;
 
   rocksutil::port::Mutex server_mutex_;
 };

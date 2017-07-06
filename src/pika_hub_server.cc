@@ -6,6 +6,7 @@
 #include <string>
 
 #include "src/pika_hub_server.h"
+#include "slash/include/slash_string.h"
 
 Options SanitizeOptions(const Options& options) {
   Options result(options);
@@ -35,6 +36,10 @@ void PikaHubServerHandler::CronHandle() const {
   pika_hub_server_->binlog_writer()->Append(std::string(buf));
 }
 
+bool PikaHubInnerServerHandler::AccessHandle(std::string& ip) const {
+  return pika_hub_server_->IsValidClient(ip);
+}
+
 PikaHubServer::PikaHubServer(const Options& options)
   : env_(options.env),
     options_(SanitizeOptions(options)),
@@ -44,6 +49,9 @@ PikaHubServer::PikaHubServer(const Options& options)
   server_handler_ = new PikaHubServerHandler(this);
   server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000,
                             server_handler_);
+  inner_server_handler_ = new PikaHubInnerServerHandler(this);
+  inner_server_thread_ = pink::NewDispatchThread(options_.port+1000, 2,
+                  conn_factory_, 1000, 1000, inner_server_handler_);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env);
   binlog_writer_ = binlog_manager_->AddWriter();
   binlog_sender_ = nullptr;
@@ -51,16 +59,23 @@ PikaHubServer::PikaHubServer(const Options& options)
 
 PikaHubServer::~PikaHubServer() {
   server_thread_->StopThread();
+  inner_server_thread_->StopThread();
   delete binlog_sender_;
   delete binlog_writer_;
   delete binlog_manager_;
   delete server_thread_;
+  delete inner_server_thread_;
   delete conn_factory_;
   delete server_handler_;
   delete floyd_;
 }
 
 slash::Status PikaHubServer::Start() {
+  if (!CheckPikaServers()) {
+    rocksutil::Fatal(options_.info_log, "Invalid pika-servers");
+    return slash::Status::Corruption("Invalid pika-server");
+  }
+
   slash::Status result = floyd_->Start();
   if (!result.ok()) {
     rocksutil::Fatal(options_.info_log, "Floyd start failed: %s",
@@ -72,6 +87,11 @@ slash::Status PikaHubServer::Start() {
   if (ret != 0) {
     return slash::Status::Corruption("Start server error");
   }
+  ret = inner_server_thread_->StartThread();
+  if (ret != 0) {
+    return slash::Status::Corruption("Start inner_server error");
+  }
+
   rocksutil::Info(options_.info_log, "Started");
   sleep(1);
   BinlogReader* reader = binlog_manager_->AddReader(1, 0);
@@ -87,3 +107,38 @@ slash::Status PikaHubServer::Start() {
   server_mutex_.Unlock();
   return slash::Status::OK();
 }
+
+bool PikaHubServer::IsValidClient(const std::string& ip) {
+  std::string _ip;
+  int port = 0;
+  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
+    slash::ParseIpPortString(iter->first, _ip, port);
+    if (_ip == ip) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool PikaHubServer::CheckPikaServers() {
+  std::string str = options_.pika_servers;
+  std::string ip;
+  int port = 0;
+  PikaStatus status;
+  size_t prev_pos = str.find_first_not_of(',', 0);
+  size_t pos = str.find(',', prev_pos);
+
+  while (prev_pos != std::string::npos || pos != std::string::npos) {
+    std::string token(str.substr(prev_pos, pos - prev_pos));
+    if (slash::ParseIpPortString(token, ip, port)) {
+      pika_servers_.insert(std::map<std::string, PikaStatus>::
+                        value_type(token, status));
+    } else {
+      return false;
+    }
+    prev_pos = str.find_first_not_of(',', pos);
+    pos = str.find_first_of(',', prev_pos);
+  }
+  return true;
+}
+

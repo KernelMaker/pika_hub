@@ -37,6 +37,7 @@ int PikaHubClientConn::DealMessage() {
 
   memcpy(wbuf_ + wbuf_len_, res.data(), res.size());
   wbuf_len_ += res.size();
+  std::cout << std::string(wbuf_, wbuf_len_) << std::endl;
   set_is_reply(true);
 
   return 0;

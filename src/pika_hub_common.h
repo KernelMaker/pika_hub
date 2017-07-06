@@ -9,6 +9,14 @@
 struct ConnPrivateData {
 };
 
+struct PikaStatus {
+  bool is_online = false;
+  uint64_t rcv_number = 0;
+  uint64_t rcv_offset = 0;
+  uint64_t send_number = 1;
+  uint64_t send_offset = 0;
+};
+
 const char kBinlogPrefix[] = "binlog_";
 const int32_t kMaxBinlogFileSize = 100 * 1024 * 1024;
 
