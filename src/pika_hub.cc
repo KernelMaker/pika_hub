@@ -1,13 +1,13 @@
-#include <stdio.h>
-#include <unistd.h>
+//  Copyright (c) 2017-present The pika_hub Authors.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
 #include <getopt.h>
-#include <sstream>
 #include <signal.h>
 
-#include "pika_hub_server.h"
+#include "src/pika_hub_server.h"
 
-#include "slash/include/slash_status.h"
-#include "rocksutil/auto_roll_logger.h"
 
 void Usage();
 const struct option long_options[] = {
@@ -25,14 +25,14 @@ PikaHubServer* g_pika_hub_server;
 std::shared_ptr<rocksutil::Logger> g_log;
 
 void IntSigHandle(int sig) {
-  printf ("Catch Signal %d, cleanup...\n", sig);
+  printf("Catch Signal %d, cleanup...\n", sig);
   g_pika_hub_server->Unlock();
 }
 
 void SignalSetup() {
   signal(SIGPIPE, SIG_IGN);
   if (signal(SIGINT, &IntSigHandle) == SIG_ERR) {
-    printf ("Catch SignalInt error\n");
+    printf("Catch SignalInt error\n");
   }
   signal(SIGQUIT, &IntSigHandle);
   signal(SIGTERM, &IntSigHandle);
@@ -40,9 +40,9 @@ void SignalSetup() {
 
 int main(int argc, char** argv) {
   if (argc < 12) {
-    printf ("Usage:\n"
-            " ./main --servers ip1:port1,ip2:port2 --local_ip ip --local_port port\n"
-            "   --sdk_port sdk_port --data_path data_path --log_path log_path\n");
+    printf("Usage:\n"
+      " ./main --servers ip1:port1,ip2:port2 --local_ip ip --local_port port\n"
+      "   --sdk_port sdk_port --data_path data_path --log_path log_path\n");
     exit(0);
   }
 
@@ -90,9 +90,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  printf ("Will Stop Server...\n");
+  printf("Will Stop Server...\n");
   delete g_pika_hub_server;
 
-  sleep(1);
   return 0;
 }

@@ -1,10 +1,20 @@
-#include "pika_hub_binlog_writer.h"
-#include "pika_hub_common.h"
+//  Copyright (c) 2017-present The pika_hub Authors.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
+#include "src/pika_hub_binlog_writer.h"
+
+#include <utility>
+#include <memory>
+#include <string>
+
+#include "src/pika_hub_common.h"
+#include "src/pika_hub_binlog_manager.h"
 #include "rocksutil/file_reader_writer.h"
-#include "pika_hub_binlog_manager.h"
 
 uint64_t BinlogWriter::GetOffsetInFile() {
-   return writer_->file()->GetFileSize();
+  return writer_->file()->GetFileSize();
 }
 
 rocksutil::Status BinlogWriter::Append(const std::string& str) {
@@ -33,7 +43,8 @@ rocksutil::log::Writer* CreateWriter(rocksutil::Env* env,
   }
 
   std::unique_ptr<rocksutil::WritableFileWriter> writable_file_writer(
-       new rocksutil::WritableFileWriter(std::move(writable_file), env_options));
+       new rocksutil::WritableFileWriter(std::move(writable_file),
+         env_options));
 
   return new rocksutil::log::Writer(std::move(writable_file_writer));
 }

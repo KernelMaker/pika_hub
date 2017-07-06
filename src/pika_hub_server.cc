@@ -1,5 +1,11 @@
-#include "pika_hub_server.h"
-#include "rocksutil/auto_roll_logger.h"
+//  Copyright (c) 2017-present The pika_hub Authors.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
+#include <string>
+
+#include "src/pika_hub_server.h"
 
 Options SanitizeOptions(const Options& options) {
   Options result(options);
@@ -24,18 +30,20 @@ floyd::Options BuildFloydOptions(const Options& options) {
 
 void PikaHubServerHandler::CronHandle() const {
   pika_hub_server_->ResetLastSecQueryNum();
-  pika_hub_server_->binlog_writer()->Append("Hello World");
+  char buf[1024*1024];
+  memset(buf, 'a', 1024*1024);
+  pika_hub_server_->binlog_writer()->Append(std::string(buf));
 }
 
 PikaHubServer::PikaHubServer(const Options& options)
   : env_(options.env),
     options_(SanitizeOptions(options)),
     statistic_data_(options.env) {
-  
   floyd::Floyd::Open(BuildFloydOptions(options), &floyd_);
   conn_factory_ = new PikaHubClientConnFactory();
   server_handler_ = new PikaHubServerHandler(this);
-  server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000, server_handler_);
+  server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000,
+                            server_handler_);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env);
   binlog_writer_ = binlog_manager_->AddWriter();
   binlog_sender_ = nullptr;
@@ -55,7 +63,8 @@ PikaHubServer::~PikaHubServer() {
 slash::Status PikaHubServer::Start() {
   slash::Status result = floyd_->Start();
   if (!result.ok()) {
-    rocksutil::Fatal(options_.info_log, "Floyd start failed: %s", result.ToString().c_str());
+    rocksutil::Fatal(options_.info_log, "Floyd start failed: %s",
+        result.ToString().c_str());
     return result;
   }
 

@@ -1,13 +1,21 @@
-#include "pika_hub_binlog_reader.h"
-#include "pika_hub_common.h"
-#include "pika_hub_binlog_manager.h"
-#include "rocksutil/file_reader_writer.h"
-#include "rocksutil/log_reader.h"
+//  Copyright (c) 2017-present The pika_hub Authors.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
 #include <iostream>
+#include <utility>
+#include <memory>
+#include <string>
+
+#include "src/pika_hub_binlog_reader.h"
+#include "src/pika_hub_common.h"
+#include "src/pika_hub_binlog_manager.h"
+#include "rocksutil/file_reader_writer.h"
 
 void BinlogReader::StopRead() {
- should_exit_ = true;
- manager_->cv()->SignalAll();
+  should_exit_ = true;
+  manager_->cv()->SignalAll();
 }
 
 rocksutil::Status BinlogReader::ReadRecord(rocksutil::Slice* slice,
@@ -19,7 +27,6 @@ rocksutil::Status BinlogReader::ReadRecord(rocksutil::Slice* slice,
   while (true) {
     ret = reader_->ReadRecord(slice, scratch);
     if (ret) {
-      offset_ += slice->size();
       return rocksutil::Status::OK();
     } else {
       if (status_.ok()) {
@@ -28,7 +35,7 @@ rocksutil::Status BinlogReader::ReadRecord(rocksutil::Slice* slice,
         reader_offset = reader_->EndOfBufferOffset();
         std::cout << writer_number << " " << writer_offset << " " <<
           number_ << " " << reader_offset << std::endl;
-        while(number_ == writer_number && reader_offset == writer_offset) {
+        while (number_ == writer_number && reader_offset == writer_offset) {
           manager_->cv()->Wait();
           if (should_exit_) {
             manager_->mutex()->Unlock();
@@ -80,7 +87,6 @@ bool BinlogReader::TryToRollFile() {
     delete reader_;
     reader_ = new_reader;
     number_++;
-    offset_ = 0;
     return true;
   }
   return false;
@@ -89,9 +95,9 @@ bool BinlogReader::TryToRollFile() {
 BinlogReader* CreateBinlogReader(const std::string& log_path,
     rocksutil::Env* env, uint64_t number, uint64_t offset,
     BinlogManager* manager) {
-  
+
   BinlogReader* binlog_reader = new BinlogReader(nullptr, log_path, number,
-                                      offset, env, manager);
+                                      env, manager);
 
   rocksutil::log::Reader* reader = CreateReader(env,
       log_path, number, offset, binlog_reader->reporter());

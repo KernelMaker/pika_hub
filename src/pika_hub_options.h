@@ -1,7 +1,16 @@
-#ifndef PIKA_HUB_OPTIONS_H_
-#define PIKA_HUB_OPTIONS_H_
+//  Copyright (c) 2017-present The pika_hub Authors.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
+#ifndef SRC_PIKA_HUB_OPTIONS_H_
+#define SRC_PIKA_HUB_OPTIONS_H_
+
+#include <memory>
+#include <string>
 
 #include "rocksutil/auto_roll_logger.h"
+#include "floyd/include/floyd.h"
 
 struct PikaHubOptions {
   int port = 9221;
@@ -16,7 +25,7 @@ struct PikaHubOptions {
 };
 
 struct Options : public PikaHubOptions, public floyd::Options {
-  Options() : PikaHubOptions(), floyd::Options() {};
+  Options() : PikaHubOptions(), floyd::Options() {}
   std::string str_members;
   void Dump(rocksutil::Logger* log) const {
     Header(log, "-------------------Dump Options------------------------");
@@ -38,6 +47,6 @@ struct Options : public PikaHubOptions, public floyd::Options {
     Header(log, " append_entries_count_once = %lu", append_entries_count_once);
     Header(log, " single_mode = %d", single_mode);
     Header(log, "-------------------Dump Options Done-------------------");
-  };
+  }
 };
-#endif
+#endif  // SRC_PIKA_HUB_OPTIONS_H_

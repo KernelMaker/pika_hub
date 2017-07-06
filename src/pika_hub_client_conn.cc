@@ -1,5 +1,12 @@
-#include "pika_hub_client_conn.h"
-#include "pika_hub_server.h"
+//  Copyright (c) 2017-present The pika_hub Authors.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
+#include <string>
+
+#include "src/pika_hub_client_conn.h"
+#include "src/pika_hub_server.h"
 #include "slash/include/slash_string.h"
 
 extern PikaHubServer* g_pika_hub_server;
@@ -8,7 +15,7 @@ int PikaHubClientConn::DealMessage() {
   g_pika_hub_server->PlusQueryNum();
   uint64_t last_qps = g_pika_hub_server->last_qps();
   uint64_t query_num = g_pika_hub_server->query_num();
-  
+
   char len_buf[32];
   char buf[32];
   int len = slash::ll2string(buf, sizeof(buf), last_qps);

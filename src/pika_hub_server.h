@@ -1,17 +1,19 @@
-#ifndef PIKA_HUB_SERVER_H
-#define PIKA_HUB_SERVER_H
+//  Copyright (c) 2017-present The pika_hub Authors.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+//
+#ifndef SRC_PIKA_HUB_SERVER_H_
+#define SRC_PIKA_HUB_SERVER_H_
 
 #include <atomic>
 
+#include "src/pika_hub_options.h"
+#include "src/pika_hub_client_conn.h"
+#include "src/pika_hub_binlog_manager.h"
+#include "src/pika_hub_binlog_sender.h"
 #include "floyd/include/floyd.h"
 #include "pink/include/server_thread.h"
-
-#include "rocksutil/mutexlock.h"
-
-#include "pika_hub_options.h"
-#include "pika_hub_client_conn.h"
-#include "pika_hub_binlog_manager.h"
-#include "pika_hub_binlog_sender.h"
 
 class PikaHubServer;
 
@@ -19,10 +21,10 @@ class PikaHubServerHandler : public pink::ServerHandle {
  public:
   explicit PikaHubServerHandler(PikaHubServer* pika_hub_server)
     : pika_hub_server_(pika_hub_server) {
-    };
-  virtual ~PikaHubServerHandler() {};
+    }
+  virtual ~PikaHubServerHandler() {}
 
-  virtual void CronHandle() const override; 
+  virtual void CronHandle() const override;
 
  private:
   PikaHubServer* pika_hub_server_;
@@ -75,12 +77,12 @@ class PikaHubServer {
   const Options options_;
 
   struct StatisticData {
-    StatisticData(rocksutil::Env* env):
+    explicit StatisticData(rocksutil::Env* env):
       last_query_num(0),
       query_num(0),
       last_qps(0),
       last_time_us(env->NowMicros()) {
-    };
+    }
     std::atomic<uint64_t> last_query_num;
     std::atomic<uint64_t> query_num;
     std::atomic<uint64_t> last_qps;
@@ -101,4 +103,4 @@ class PikaHubServer {
   rocksutil::port::Mutex server_mutex_;
 };
 
-#endif
+#endif  // SRC_PIKA_HUB_SERVER_H_

@@ -1,13 +1,20 @@
-#include "pika_hub_binlog_manager.h"
-#include "pika_hub_common.h"
+//  Copyright (c) 2017-present The pika_hub Authors.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+
+#include "src/pika_hub_binlog_manager.h"
+#include "src/pika_hub_common.h"
+#include <string>
+#include <vector>
 
 void AbstractFileAndUpdate(const std::string& filename,
     uint64_t* largest) {
-  std::string prefix = filename.substr(0, kBinlogPrefix.size());
+  std::string prefix = filename.substr(0, strlen(kBinlogPrefix));
   if (prefix == kBinlogPrefix) {
     char* ptr;
     uint64_t num =
-        strtoul(filename.data() + kBinlogPrefix.size(), &ptr, 10);
+        strtoul(filename.data() + strlen(kBinlogPrefix), &ptr, 10);
     if (num > *largest) {
       *largest = num;
     }
@@ -46,9 +53,9 @@ BinlogManager* CreateBinlogManager(const std::string& log_path,
   if (!s.ok()) {
     return nullptr;
   }
-  
+
   uint64_t largest = 0;
-  for(auto& file : result) {
+  for (auto& file : result) {
     AbstractFileAndUpdate(file, &largest);
   }
 
