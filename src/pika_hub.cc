@@ -87,6 +87,11 @@ int main(int argc, char** argv) {
   options.log_path = g_pika_hub_conf->floyd_log_path();
   options.port = g_pika_hub_conf->sdk_port();
   options.info_log_path = g_pika_hub_conf->log_path();
+  options.max_log_file_size = g_pika_hub_conf->max_log_file_size();
+  options.log_file_time_to_roll = g_pika_hub_conf->log_file_time_to_roll();
+  options.info_log_level = static_cast<rocksutil::InfoLogLevel>(
+      g_pika_hub_conf->info_log_level());
+  options.pika_servers = g_pika_hub_conf->pika_servers();
 
   SignalSetup();
 

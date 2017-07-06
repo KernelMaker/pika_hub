@@ -21,8 +21,11 @@ int PikaHubConf::Load() {
   GetConfStr("floyd-data-path", &floyd_data_path_);
   GetConfStr("floyd-log-path", &floyd_log_path_);
   GetConfInt("sdk-port", &sdk_port_);
-  GetConfStr("log-path", &log_path_);
   GetConfStr("conf-path", &conf_path_);
-
+  GetConfStr("log-path", &log_path_);
+  GetConfInt("max-log-file-size", &max_log_file_size_);
+  GetConfInt("log-file-time-to-roll", &log_file_time_to_roll_);
+  GetConfInt("info-log-level", &info_log_level_);
+  GetConfStr("pika-servers", &pika_servers_);
   return 0;
 }

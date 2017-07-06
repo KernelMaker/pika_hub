@@ -39,13 +39,29 @@ class PikaHubConf : public slash::BaseConf {
     rocksutil::ReadLock l(&rw_mutex_);
     return sdk_port_;
   }
+  const std::string& conf_path() {
+    rocksutil::ReadLock l(&rw_mutex_);
+    return conf_path_;
+  }
   const std::string& log_path() {
     rocksutil::ReadLock l(&rw_mutex_);
     return log_path_;
   }
-  const std::string& conf_path() {
+  int max_log_file_size() {
     rocksutil::ReadLock l(&rw_mutex_);
-    return conf_path_;
+    return max_log_file_size_;
+  }
+  int log_file_time_to_roll() {
+    rocksutil::ReadLock l(&rw_mutex_);
+    return log_file_time_to_roll_;
+  }
+  int info_log_level() {
+    rocksutil::ReadLock l(&rw_mutex_);
+    return info_log_level_;
+  }
+  const std::string& pika_servers() {
+    rocksutil::ReadLock l(&rw_mutex_);
+    return pika_servers_;
   }
 
   int Load();
@@ -57,8 +73,12 @@ class PikaHubConf : public slash::BaseConf {
   std::string floyd_data_path_;
   std::string floyd_log_path_;
   int sdk_port_;
-  std::string log_path_;
   std::string conf_path_;
+  std::string log_path_;
+  int max_log_file_size_;
+  int log_file_time_to_roll_;
+  int info_log_level_;
+  std::string pika_servers_;
 
   rocksutil::port::RWMutex rw_mutex_;
 };

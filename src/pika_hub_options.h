@@ -13,13 +13,14 @@
 #include "floyd/include/floyd.h"
 
 struct PikaHubOptions {
-  int port = 9221;
+  int port = 6868;
 
   std::string info_log_path = "./info_log";
   std::shared_ptr<rocksutil::Logger> info_log = nullptr;
   size_t max_log_file_size = 0;
   size_t log_file_time_to_roll = 0;
   rocksutil::InfoLogLevel info_log_level = rocksutil::INFO_LEVEL;
+  std::string pika_servers = "127.0.0.1:9221";
 
   rocksutil::Env* env = rocksutil::Env::Default();
 };
@@ -35,6 +36,7 @@ struct Options : public PikaHubOptions, public floyd::Options {
     Header(log, " max_log_file_size = %u", max_log_file_size);
     Header(log, " log_file_time_to_roll = %u", log_file_time_to_roll);
     Header(log, " info_log_level = %d", info_log_level);
+    Header(log, " pika_servers = %s", pika_servers.c_str());
     Header(log, "");
     Header(log, "Floyd:");
     Header(log, " members = %s", str_members.c_str());
