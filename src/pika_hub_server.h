@@ -12,8 +12,10 @@
 #include "src/pika_hub_options.h"
 #include "src/pika_hub_common.h"
 #include "src/pika_hub_client_conn.h"
+#include "src/pika_hub_inner_client_conn.h"
 #include "src/pika_hub_binlog_manager.h"
 #include "src/pika_hub_binlog_sender.h"
+#include "src/pika_hub_trysync.h"
 #include "floyd/include/floyd.h"
 #include "pink/include/server_thread.h"
 
@@ -43,6 +45,8 @@ class PikaHubInnerServerHandler : public pink::ServerHandle {
   virtual ~PikaHubInnerServerHandler() {}
 
   virtual bool AccessHandle(std::string& ip) const override;
+//  virtual void FdClosedHandle(int fd,
+//      const std::string& ip_port) const override;
 
  private:
   PikaHubServer* pika_hub_server_;
@@ -98,6 +102,7 @@ class PikaHubServer {
     options_.Dump(options_.info_log.get());
   }
   bool IsValidClient(const std::string& ip);
+  void ResetRcvNumber(const std::string& ip_port);
 
  private:
   rocksutil::Env* env_;
@@ -122,16 +127,21 @@ class PikaHubServer {
   floyd::Floyd* floyd_;
 
   PikaHubServerHandler* server_handler_;
-  PikaHubInnerServerHandler* inner_server_handler_;
   PikaHubClientConnFactory* conn_factory_;
   pink::ServerThread* server_thread_;
+
+  PikaHubInnerServerHandler* inner_server_handler_;
+  PikaHubInnerClientConnFactory* inner_conn_factory_;
   pink::ServerThread* inner_server_thread_;
 
   BinlogManager* binlog_manager_;
+  PikaHubTrysync* trysync_thread_;
   BinlogWriter* binlog_writer_;
   BinlogSender* binlog_sender_;
   bool CheckPikaServers();
   std::map<std::string, PikaStatus> pika_servers_;
+  // protect pika_servers_
+  rocksutil::port::Mutex pika_mutex_;
 
   rocksutil::port::Mutex server_mutex_;
 };

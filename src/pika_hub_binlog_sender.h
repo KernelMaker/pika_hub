@@ -22,6 +22,7 @@ class BinlogSender : public pink::Thread {
     reader_(reader) {}
 
   virtual ~BinlogSender() {
+//    set_should_stop();
     set_should_stop(true);
     reader_->StopRead();
     StopThread();

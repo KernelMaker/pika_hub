@@ -10,11 +10,15 @@ struct ConnPrivateData {
 };
 
 struct PikaStatus {
-  bool is_online = false;
+  bool should_trysync = true;
+  bool should_delete = false;
+  uint8_t rcv_conn_num = 0;
+  uint8_t send_conn_num = 0;
   uint64_t rcv_number = 0;
   uint64_t rcv_offset = 0;
   uint64_t send_number = 1;
   uint64_t send_offset = 0;
+  void* sender = nullptr;
 };
 
 const char kBinlogPrefix[] = "binlog_";

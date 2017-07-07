@@ -61,6 +61,11 @@ bool PikaHubInnerServerHandler::AccessHandle(std::string& ip) const {
   return pika_hub_server_->IsValidClient(ip);
 }
 
+//void PikaHubInnerServerHandler::FdClosedHandle(int fd,
+//    const std::string& ip_port) const {
+//  pika_hub_server_->ResetRcvNumber(ip_port);
+//};
+
 PikaHubServer::PikaHubServer(const Options& options)
   : env_(options.env),
     options_(SanitizeOptions(options)),
@@ -70,10 +75,13 @@ PikaHubServer::PikaHubServer(const Options& options)
   server_handler_ = new PikaHubServerHandler(this);
   server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000,
                             server_handler_);
+  inner_conn_factory_ = new PikaHubInnerClientConnFactory();
   inner_server_handler_ = new PikaHubInnerServerHandler(this);
   inner_server_thread_ = pink::NewDispatchThread(options_.port+1000, 2,
-                  conn_factory_, 1000, 1000, inner_server_handler_);
+                  inner_conn_factory_, 1000, 1000, inner_server_handler_);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env);
+  trysync_thread_ = new PikaHubTrysync(options_.info_log, options.local_ip,
+      options.port, &pika_servers_, &pika_mutex_);
   binlog_writer_ = binlog_manager_->AddWriter();
   binlog_sender_ = nullptr;
 }
@@ -83,11 +91,17 @@ PikaHubServer::~PikaHubServer() {
   inner_server_thread_->StopThread();
   delete binlog_sender_;
   delete binlog_writer_;
+  delete trysync_thread_;
   delete binlog_manager_;
-  delete server_thread_;
+
   delete inner_server_thread_;
+  delete inner_conn_factory_;
+  delete inner_server_handler_;
+
+  delete server_thread_;
   delete conn_factory_;
   delete server_handler_;
+
   delete floyd_;
 }
 
@@ -112,6 +126,10 @@ slash::Status PikaHubServer::Start() {
   if (ret != 0) {
     return slash::Status::Corruption("Start inner_server error");
   }
+  ret = trysync_thread_->StartThread();
+  if (ret != 0) {
+    return slash::Status::Corruption("Start trysync thread error");
+  }
 
   rocksutil::Info(options_.info_log, "Started");
   sleep(1);
@@ -132,14 +150,31 @@ slash::Status PikaHubServer::Start() {
 bool PikaHubServer::IsValidClient(const std::string& ip) {
   std::string _ip;
   int port = 0;
+  rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
     slash::ParseIpPortString(iter->first, _ip, port);
+//    if (_ip == ip && iter->second.rcv_number == 0) {
     if (_ip == ip) {
+      rocksutil::Info(options_.info_log, "Check IP: %s success", ip.c_str());
+      iter->second.rcv_number = 1;
       return true;
     }
   }
+  rocksutil::Warn(options_.info_log, "Check IP: %s failed", ip.c_str());
   return false;
 }
+
+//void PikaHubServer::ResetRcvNumber(const std::string& ip_port) {
+//  std::string ip;
+//  int port = 0;
+//  rocksutil::MutexLock l(&pika_mutex_);
+//  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
+//    slash::ParseIpPortString(ip_port, ip, port);
+//    if (iter->first == ip && iter->second.rcv_number == 1) {
+//      iter->second.rcv_number = 0;
+//    }
+//  }
+//}
 
 bool PikaHubServer::CheckPikaServers() {
   std::string str = options_.pika_servers;
@@ -162,4 +197,3 @@ bool PikaHubServer::CheckPikaServers() {
   }
   return true;
 }
-

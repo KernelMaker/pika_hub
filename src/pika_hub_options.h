@@ -40,6 +40,7 @@ struct Options : public PikaHubOptions, public floyd::Options {
     Header(log, "");
     Header(log, "Floyd:");
     Header(log, " members = %s", str_members.c_str());
+    Header(log, " local_ip = %s", local_ip.c_str());
     Header(log, " local_port = %d", local_port);
     Header(log, " data_path = %s", data_path.c_str());
     Header(log, " log_path = %s", log_path.c_str());
