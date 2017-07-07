@@ -11,34 +11,43 @@
 
 extern PikaHubServer* g_pika_hub_server;
 
+std::string PikaHubClientConn::DoCmd(const std::string& opt) {
+  // Get command info
+  const CmdInfo* const cinfo_ptr = GetCmdInfo(opt);
+  Cmd* c_ptr = GetCmdFromTable(opt, *cmds_table_);
+  if (!cinfo_ptr || !c_ptr) {
+      return "-Err unknown or unsupported command \'" + opt + "\'\r\n";
+  }
+  // Initial
+  c_ptr->Initial(argv_, cinfo_ptr);
+  if (!c_ptr->res().ok()) {
+    return c_ptr->res().message();
+  }
+
+  c_ptr->Do();
+  return c_ptr->res().message();
+}
+
 int PikaHubClientConn::DealMessage() {
   g_pika_hub_server->PlusQueryNum();
-  uint64_t last_qps = g_pika_hub_server->last_qps();
-  uint64_t query_num = g_pika_hub_server->query_num();
 
-  char len_buf[32];
-  char buf[32];
-  int len = slash::ll2string(buf, sizeof(buf), last_qps);
-  slash::ll2string(len_buf, sizeof(len_buf), len);
+  if (argv_.empty()) {
+    return -2;
+  }
+  std::string opt = argv_[0];
+  slash::StringToLower(opt);
+  std::string res = DoCmd(opt);
 
-  std::string res = "*2\r\n$";
-  res.append(len_buf);
-  res.append("\r\n");
-  res.append(buf);
-  res.append("\r\n$");
-
-  len = slash::ll2string(buf, sizeof(buf), query_num);
-  slash::ll2string(len_buf, sizeof(len_buf), len);
-
-  res.append(len_buf);
-  res.append("\r\n");
-  res.append(buf);
-  res.append("\r\n");
-
+  while ((wbuf_size_ - wbuf_len_ <= res.size())) {
+    if (!ExpandWbuf()) {
+      memcpy(wbuf_, "-ERR buf is too large\r\n", 23);
+      wbuf_len_ = 23;
+      set_is_reply(true);
+      return 0;
+    }
+  }
   memcpy(wbuf_ + wbuf_len_, res.data(), res.size());
   wbuf_len_ += res.size();
-  std::cout << std::string(wbuf_, wbuf_len_) << std::endl;
   set_is_reply(true);
-
   return 0;
 }

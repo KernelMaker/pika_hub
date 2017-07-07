@@ -26,7 +26,10 @@ class PikaHubServerHandler : public pink::ServerHandle {
     }
   virtual ~PikaHubServerHandler() {}
 
+  virtual bool AccessHandle(std::string& ip) const override;
   virtual void CronHandle() const override;
+  int CreateWorkerSpecificData(void** data) const override;
+  int DeleteWorkerSpecificData(void* data) const override;
 
  private:
   PikaHubServer* pika_hub_server_;
@@ -51,6 +54,10 @@ class PikaHubServer {
   virtual ~PikaHubServer();
   slash::Status Start();
 
+  uint64_t acc_connections() {
+    return statistic_data_.acc_connections.load();
+  }
+
   uint64_t last_qps() {
     return statistic_data_.last_qps.load();
   }
@@ -64,6 +71,10 @@ class PikaHubServer {
 
   BinlogManager* binlog_manager() {
     return binlog_manager_;
+  }
+
+  void PlusAccConnections() {
+    statistic_data_.acc_connections++;
   }
 
   void PlusQueryNum() {
@@ -93,12 +104,14 @@ class PikaHubServer {
   const Options options_;
 
   struct StatisticData {
-    explicit StatisticData(rocksutil::Env* env):
+    explicit StatisticData(rocksutil::Env* env) :
+      acc_connections(0),
       last_query_num(0),
       query_num(0),
       last_qps(0),
       last_time_us(env->NowMicros()) {
     }
+    std::atomic<uint64_t> acc_connections;
     std::atomic<uint64_t> last_query_num;
     std::atomic<uint64_t> query_num;
     std::atomic<uint64_t> last_qps;

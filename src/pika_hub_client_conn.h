@@ -9,16 +9,23 @@
 #include <string>
 
 #include "pink/include/redis_conn.h"
+#include "src/pika_hub_command.h"
 
 class PikaHubClientConn : public pink::RedisConn {
  public:
   PikaHubClientConn(int fd, const std::string& ip_port,
-      pink::ServerThread* server_thread) :
-    pink::RedisConn(fd, ip_port, server_thread) {}
+      pink::ServerThread* server_thread, void* worker_specific_data) :
+    pink::RedisConn(fd, ip_port, server_thread),
+    cmds_table_(reinterpret_cast<CmdTable*>(worker_specific_data)) {}
 
   virtual ~PikaHubClientConn() {}
 
   virtual int DealMessage() override;
+
+ private:
+  CmdTable* const cmds_table_;
+
+  std::string DoCmd(const std::string& opt);
 };
 
 class PikaHubClientConnFactory : public pink::ConnFactory {
@@ -30,7 +37,7 @@ class PikaHubClientConnFactory : public pink::ConnFactory {
       pink::ServerThread* server_thread,
       void* worker_private_data) const override {
     return new PikaHubClientConn(connfd, ip_port,
-        server_thread);
+        server_thread, worker_private_data);
   }
 };
 

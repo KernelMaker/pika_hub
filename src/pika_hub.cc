@@ -8,6 +8,7 @@
 
 #include "src/pika_hub_server.h"
 #include "src/pika_hub_conf.h"
+#include "src/pika_hub_command.h"
 
 PikaHubServer* g_pika_hub_server;
 PikaHubConf* g_pika_hub_conf;
@@ -94,6 +95,7 @@ int main(int argc, char** argv) {
   options.pika_servers = g_pika_hub_conf->pika_servers();
 
   SignalSetup();
+  InitCmdInfoTable();
 
   g_pika_hub_server = new PikaHubServer(options);
   g_pika_hub_server->DumpOptions();

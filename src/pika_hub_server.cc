@@ -6,6 +6,7 @@
 #include <string>
 
 #include "src/pika_hub_server.h"
+#include "src/pika_hub_command.h"
 #include "slash/include/slash_string.h"
 
 Options SanitizeOptions(const Options& options) {
@@ -29,11 +30,31 @@ floyd::Options BuildFloydOptions(const Options& options) {
   return result;
 }
 
+bool PikaHubServerHandler::AccessHandle(std::string& ip) const {
+  pika_hub_server_->PlusAccConnections();
+  return true;
+}
+
 void PikaHubServerHandler::CronHandle() const {
   pika_hub_server_->ResetLastSecQueryNum();
   char buf[1024*1024];
   memset(buf, 'a', 1024*1024);
   pika_hub_server_->binlog_writer()->Append(std::string(buf));
+}
+
+int PikaHubServerHandler::CreateWorkerSpecificData(void** data) const {
+  CmdTable* cmds = new CmdTable;
+  cmds->reserve(100);
+  InitCmdTable(cmds);
+  *data = reinterpret_cast<void*>(cmds);
+  return 0;
+}
+
+int PikaHubServerHandler::DeleteWorkerSpecificData(void* data) const {
+  CmdTable* cmds = reinterpret_cast<CmdTable*>(data);
+  DestoryCmdTable(cmds);
+  delete cmds;
+  return 0;
 }
 
 bool PikaHubInnerServerHandler::AccessHandle(std::string& ip) const {
