@@ -83,6 +83,7 @@ void PikaHubTrysync::Trysync(const std::map<std::string, PikaStatus>::
 
 void* PikaHubTrysync::ThreadMain() {
   while (!should_stop()) {
+    {
     rocksutil::MutexLock l(pika_mutex_);
     for (auto it = pika_servers_->begin(); it != pika_servers_->end(); it++) {
       if (it->second.should_delete) {
@@ -92,6 +93,7 @@ void* PikaHubTrysync::ThreadMain() {
       if (it->second.should_trysync && it->second.sender == nullptr) {
         Trysync(it);
       }
+    }
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }

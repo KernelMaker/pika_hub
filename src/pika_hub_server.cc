@@ -26,7 +26,6 @@ floyd::Options BuildFloydOptions(const Options& options) {
   floyd::Options result(options.str_members,
       options.local_ip, options.local_port,
       options.path);
-  result.members = options.members;
   return result;
 }
 
