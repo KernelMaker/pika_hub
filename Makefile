@@ -36,8 +36,8 @@ ifndef PINK_PATH
 PINK_PATH = $(realpath $(THIRD_PATH)/pink)
 endif
 
-ifndef NEMODB_PATH
-NEMODB_PATH = $(realpath $(THIRD_PATH)/nemo-rocksdb)
+ifndef ROCKSDB_PATH
+ROCKSDB_PATH = $(realpath $(THIRD_PATH)/rocksdb)
 endif
 
 ifndef FLOYD_PATH
@@ -57,9 +57,7 @@ INCLUDE_PATH = -I./ \
 							 -I$(SLASH_PATH)/ \
 							 -I$(PINK_PATH)/ \
 							 -I$(FLOYD_PATH)/ \
-							 -I$(NEMODB_PATH)/ \
-							 -I$(NEMODB_PATH)/rocksdb \
-							 -I$(NEMODB_PATH)/rocksdb/include \
+							 -I$(ROCKSDB_PATH)/ \
 							 -I$(ROCKSUTIL_PATH)/ \
 							 -I$(ROCKSUTIL_PATH)/include 
 
@@ -67,7 +65,7 @@ LIB_PATH = -L./ \
 					 -L$(FLOYD_PATH)/floyd/lib/ \
 					 -L$(SLASH_PATH)/slash/lib/ \
 					 -L$(PINK_PATH)/pink/lib/ \
-					 -L$(NEMODB_PATH)/output/lib/ \
+					 -L$(ROCKSDB_PATH) \
 					 -L$(ROCKSUTIL_PATH)
 
 LIBS = -lpthread \
@@ -77,7 +75,6 @@ LIBS = -lpthread \
 			 -lslash \
 			 -lz \
 			 -lbz2 \
-			 -lnemodb \
 			 -lrocksdb \
 			 -lsnappy \
 			 -lrt \
@@ -86,7 +83,7 @@ LIBS = -lpthread \
 			 -lrocksutil
 
 FLOYD = $(FLOYD_PATH)/floyd/lib/libfloyd.a
-NEMODB = $(NEMODB_PATH)/output/lib/libnemodb.a
+ROCKSDB = $(ROCKSDB_PATH)/output/lib/librocksdb.a
 PINK = $(PINK_PATH)/pink/lib/libpink.a
 SLASH = $(SLASH_PATH)/slash/lib/libslash.a
 ROCKSUTIL = $(ROCKSUTIL_PATH)/rocksutil/librocksutil.a
@@ -99,7 +96,7 @@ all: $(PIKA_HUB)
 	echo "PINK_PATH $(PINK_PATH)"
 	echo "SLASH_PATH $(SLASH_PATH)"
 	echo "FLOYD_PATH $(FLOYD_PATH)"
-	echo "NEMODB_PATH $(NEMODB_PATH)"
+	echo "ROCKSDB_PATH $(ROCKSDB_PATH)"
 	rm -rf $(OUTPUT)
 	mkdir $(OUTPUT)
 	mkdir $(OUTPUT)/bin
@@ -117,10 +114,10 @@ $(OBJS): %.o : %.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) $(VERSION)
 
 $(FLOYD):
-	make -C $(FLOYD_PATH)/floyd/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH) NEMODB_PATH=$(NEMODB_PATH)
+	make -C $(FLOYD_PATH)/floyd/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH) ROCKSDB_PATH=$(ROCKSDB_PATH)
 
-$(NEMODB):
-	make -C $(NEMODB_PATH)/
+$(ROCKSDB):
+	make -C $(ROCKSDB_PATH)/ static_lib
 
 $(SLASH):
 	make -C $(SLASH_PATH)/slash/ __PERF=$(__PERF)
@@ -138,7 +135,7 @@ clean:
 distclean: clean
 	make -C $(PINK_PATH)/pink/ clean
 	make -C $(SLASH_PATH)/slash/ clean
-	make -C $(NEMODB_PATH)/ clean
+	make -C $(ROCKSDB_PATH)/ clean
 	make -C $(FLOYD_PATH)/floyd/ clean
 	make -C $(ROCKSUTIL_PATH) clean
 

@@ -10,6 +10,6 @@
 [submodule "third/slash"]
 	path = third/slash
 	url = https://github.com/Qihoo360/slash
-[submodule "third/nemo-rocksdb"]
-	path = third/nemo-rocksdb
-	url = git@github.com:Qihoo360/nemo-rocksdb.git
+[submodule "third/rocksdb"]
+	path = third/rocksdb
+	url = https://github.com/facebook/rocksdb.git

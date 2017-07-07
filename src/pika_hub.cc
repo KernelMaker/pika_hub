@@ -84,8 +84,7 @@ int main(int argc, char** argv) {
   options.str_members = g_pika_hub_conf->floyd_servers();
   options.local_ip = g_pika_hub_conf->floyd_local_ip();
   options.local_port = g_pika_hub_conf->floyd_local_port();
-  options.data_path = g_pika_hub_conf->floyd_data_path();
-  options.log_path = g_pika_hub_conf->floyd_log_path();
+  options.path = g_pika_hub_conf->floyd_path();
   options.port = g_pika_hub_conf->sdk_port();
   options.info_log_path = g_pika_hub_conf->log_path();
   options.max_log_file_size = g_pika_hub_conf->max_log_file_size();

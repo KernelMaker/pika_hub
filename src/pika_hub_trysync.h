@@ -31,8 +31,7 @@ class PikaHubTrysync : public pink::Thread {
     pika_mutex_(pika_mutex) {}
 
   virtual ~PikaHubTrysync() {
-//    set_should_stop();
-    set_should_stop(true);
+    set_should_stop();
     {
     rocksutil::MutexLock l(pika_mutex_);
     for (auto iter = pika_servers_->begin(); iter != pika_servers_->end();

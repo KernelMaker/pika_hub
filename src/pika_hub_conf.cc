@@ -18,8 +18,7 @@ int PikaHubConf::Load() {
   GetConfStr("floyd-servers", &floyd_servers_);
   GetConfStr("floyd-local-ip", &floyd_local_ip_);
   GetConfInt("floyd-local-port", &floyd_local_port_);
-  GetConfStr("floyd-data-path", &floyd_data_path_);
-  GetConfStr("floyd-log-path", &floyd_log_path_);
+  GetConfStr("floyd-path", &floyd_path_);
   GetConfInt("sdk-port", &sdk_port_);
   GetConfStr("conf-path", &conf_path_);
   GetConfStr("log-path", &log_path_);

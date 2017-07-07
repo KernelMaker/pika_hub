@@ -25,7 +25,7 @@ Options SanitizeOptions(const Options& options) {
 floyd::Options BuildFloydOptions(const Options& options) {
   floyd::Options result(options.str_members,
       options.local_ip, options.local_port,
-      options.data_path, options.log_path);
+      options.path);
   result.members = options.members;
   return result;
 }
@@ -61,16 +61,15 @@ bool PikaHubInnerServerHandler::AccessHandle(std::string& ip) const {
   return pika_hub_server_->IsValidClient(ip);
 }
 
-//void PikaHubInnerServerHandler::FdClosedHandle(int fd,
-//    const std::string& ip_port) const {
-//  pika_hub_server_->ResetRcvNumber(ip_port);
-//};
+void PikaHubInnerServerHandler::FdClosedHandle(int fd,
+    const std::string& ip_port) const {
+  pika_hub_server_->ResetRcvNumber(ip_port);
+}
 
 PikaHubServer::PikaHubServer(const Options& options)
   : env_(options.env),
     options_(SanitizeOptions(options)),
     statistic_data_(options.env) {
-  floyd::Floyd::Open(BuildFloydOptions(options), &floyd_);
   conn_factory_ = new PikaHubClientConnFactory();
   server_handler_ = new PikaHubServerHandler(this);
   server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000,
@@ -111,7 +110,8 @@ slash::Status PikaHubServer::Start() {
     return slash::Status::Corruption("Invalid pika-server");
   }
 
-  slash::Status result = floyd_->Start();
+  slash::Status result = floyd::Floyd::Open(
+      BuildFloydOptions(options_), &floyd_);
   if (!result.ok()) {
     rocksutil::Fatal(options_.info_log, "Floyd start failed: %s",
         result.ToString().c_str());
@@ -153,8 +153,7 @@ bool PikaHubServer::IsValidClient(const std::string& ip) {
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
     slash::ParseIpPortString(iter->first, _ip, port);
-//    if (_ip == ip && iter->second.rcv_number == 0) {
-    if (_ip == ip) {
+    if (_ip == ip && iter->second.rcv_number == 0) {
       rocksutil::Info(options_.info_log, "Check IP: %s success", ip.c_str());
       iter->second.rcv_number = 1;
       return true;
@@ -164,17 +163,17 @@ bool PikaHubServer::IsValidClient(const std::string& ip) {
   return false;
 }
 
-//void PikaHubServer::ResetRcvNumber(const std::string& ip_port) {
-//  std::string ip;
-//  int port = 0;
-//  rocksutil::MutexLock l(&pika_mutex_);
-//  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
-//    slash::ParseIpPortString(ip_port, ip, port);
-//    if (iter->first == ip && iter->second.rcv_number == 1) {
-//      iter->second.rcv_number = 0;
-//    }
-//  }
-//}
+void PikaHubServer::ResetRcvNumber(const std::string& ip_port) {
+  std::string ip;
+  int port = 0;
+  rocksutil::MutexLock l(&pika_mutex_);
+  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
+    slash::ParseIpPortString(ip_port, ip, port);
+    if (iter->first == ip && iter->second.rcv_number == 1) {
+      iter->second.rcv_number = 0;
+    }
+  }
+}
 
 bool PikaHubServer::CheckPikaServers() {
   std::string str = options_.pika_servers;
