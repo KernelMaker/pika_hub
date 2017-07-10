@@ -92,6 +92,7 @@ PikaHubServer::PikaHubServer(const Options& options)
   inner_server_handler_ = new PikaHubInnerServerHandler(this);
   inner_server_thread_ = pink::NewDispatchThread(options_.port+1000, 2,
                   inner_conn_factory_, 1000, 1000, inner_server_handler_);
+  inner_server_thread_->set_keepalive_timeout(0);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env);
   trysync_thread_ = new PikaHubTrysync(options_.info_log, options.local_ip,
       options.port, &pika_servers_, &pika_mutex_);
@@ -179,12 +180,17 @@ bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
 
 void PikaHubServer::ResetRcvFd(int fd, const std::string& ip_port) {
   std::string ip;
-  int port = 0;
+  std::string _ip;
+  int unuse_port = 0;
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
-    slash::ParseIpPortString(ip_port, ip, port);
-    if (iter->first == ip && iter->second.rcv_fd == fd) {
+    slash::ParseIpPortString(ip_port, ip, unuse_port);
+    slash::ParseIpPortString(iter->first, _ip, unuse_port);
+    if (_ip == ip && iter->second.rcv_fd == fd) {
+      rocksutil::Info(options_.info_log, "Reset receive fd: %s",
+          ip_port.c_str());
       iter->second.rcv_fd = -1;
+      iter->second.should_trysync = true;
     }
   }
 }
