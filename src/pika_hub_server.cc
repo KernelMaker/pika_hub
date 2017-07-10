@@ -56,8 +56,8 @@ int PikaHubServerHandler::DeleteWorkerSpecificData(void* data) const {
   return 0;
 }
 
-bool PikaHubInnerServerHandler::AccessHandle(std::string& ip) const {
-  return pika_hub_server_->IsValidClient(ip);
+bool PikaHubInnerServerHandler::AccessHandle(int fd, std::string& ip) const {
+  return pika_hub_server_->IsValidInnerClient(fd, ip);
 }
 
 int PikaHubInnerServerHandler::CreateWorkerSpecificData(void** data) const {
@@ -77,7 +77,7 @@ int PikaHubInnerServerHandler::DeleteWorkerSpecificData(void* data) const {
 
 void PikaHubInnerServerHandler::FdClosedHandle(int fd,
     const std::string& ip_port) const {
-  pika_hub_server_->ResetRcvNumber(ip_port);
+  pika_hub_server_->ResetRcvFd(fd, ip_port);
 }
 
 PikaHubServer::PikaHubServer(const Options& options)
@@ -161,15 +161,15 @@ slash::Status PikaHubServer::Start() {
   return slash::Status::OK();
 }
 
-bool PikaHubServer::IsValidClient(const std::string& ip) {
+bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
   std::string _ip;
   int port = 0;
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
     slash::ParseIpPortString(iter->first, _ip, port);
-    if (_ip == ip && iter->second.rcv_number == 0) {
+    if (_ip == ip && iter->second.rcv_fd == -1) {
       rocksutil::Info(options_.info_log, "Check IP: %s success", ip.c_str());
-      iter->second.rcv_number = 1;
+      iter->second.rcv_fd = fd;
       return true;
     }
   }
@@ -177,16 +177,32 @@ bool PikaHubServer::IsValidClient(const std::string& ip) {
   return false;
 }
 
-void PikaHubServer::ResetRcvNumber(const std::string& ip_port) {
+void PikaHubServer::ResetRcvFd(int fd, const std::string& ip_port) {
   std::string ip;
   int port = 0;
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
     slash::ParseIpPortString(ip_port, ip, port);
-    if (iter->first == ip && iter->second.rcv_number == 1) {
-      iter->second.rcv_number = 0;
+    if (iter->first == ip && iter->second.rcv_fd == fd) {
+      iter->second.rcv_fd = -1;
     }
   }
+}
+
+std::string PikaHubServer::DumpPikaServers() {
+  rocksutil::MutexLock l(&pika_mutex_);
+  std::string res;
+  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
+    res += ("ip_port:" + iter->first +
+        ", receive_fd:" + std::to_string(iter->second.rcv_fd) +
+        ", recv_offset:" + std::to_string(iter->second.rcv_number) +
+        ":" + std::to_string(iter->second.rcv_offset) +
+        ", send_fd:" + std::to_string(iter->second.send_fd) +
+        ", send_offset:" + std::to_string(iter->second.send_number) +
+        ":" + std::to_string(iter->second.send_offset) +
+        "\r\n");
+  }
+  return res;
 }
 
 bool PikaHubServer::CheckPikaServers() {

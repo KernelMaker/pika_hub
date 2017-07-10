@@ -12,8 +12,8 @@ struct ConnPrivateData {
 struct PikaStatus {
   bool should_trysync = true;
   bool should_delete = false;
-  uint8_t rcv_conn_num = 0;
-  uint8_t send_conn_num = 0;
+  int32_t rcv_fd = -1;
+  int32_t send_fd = -1;
   uint64_t rcv_number = 0;
   uint64_t rcv_offset = 0;
   uint64_t send_number = 1;

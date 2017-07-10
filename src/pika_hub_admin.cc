@@ -40,14 +40,17 @@ void InfoCmd::Do() {
   std::string info;
 
   std::stringstream tmp_stream;
-  tmp_stream << "# Stats\r\n";
 
+  tmp_stream << "# Stats\r\n";
   tmp_stream << "total_connections_received:" <<
     g_pika_hub_server->acc_connections() << "\r\n";
   tmp_stream << "instantaneous_ops_per_sec:" <<
     g_pika_hub_server->last_qps() << "\r\n";
   tmp_stream << "total_commands_processed:" <<
     g_pika_hub_server->query_num() << "\r\n";
+
+  tmp_stream << "# Pika-Servers\r\n";
+  tmp_stream << g_pika_hub_server->DumpPikaServers() << "\r\n";
 
   info.append(tmp_stream.str());
 

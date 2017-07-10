@@ -44,7 +44,7 @@ class PikaHubInnerServerHandler : public pink::ServerHandle {
     }
   virtual ~PikaHubInnerServerHandler() {}
 
-  virtual bool AccessHandle(std::string& ip) const override;
+  virtual bool AccessHandle(int fd, std::string& ip) const override;
   int CreateWorkerSpecificData(void** data) const override;
   int DeleteWorkerSpecificData(void* data) const override;
   virtual void FdClosedHandle(int fd,
@@ -103,8 +103,9 @@ class PikaHubServer {
   void DumpOptions() const {
     options_.Dump(options_.info_log.get());
   }
-  bool IsValidClient(const std::string& ip);
-  void ResetRcvNumber(const std::string& ip_port);
+  bool IsValidInnerClient(int fd, const std::string& ip);
+  void ResetRcvFd(int fd, const std::string& ip_port);
+  std::string DumpPikaServers();
 
  private:
   rocksutil::Env* env_;
