@@ -3,27 +3,26 @@
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
 //
-#ifndef SRC_PIKA_HUB_ADMIN_H_
-#define SRC_PIKA_HUB_ADMIN_H_
+#ifndef SRC_PIKA_HUB_SYNC_COMMAND_H_
+#define SRC_PIKA_HUB_SYNC_COMMAND_H_
+
+#include <string>
 #include "src/pika_hub_command.h"
 #include "src/pika_hub_client_conn.h"
 
-class PingCmd : public Cmd {
+class SetCmd : public Cmd {
  public:
-  PingCmd() {}
+  SetCmd() {}
   virtual void Do() override;
  private:
   virtual void DoInitial(const PikaCmdArgsType &argvs,
       const CmdInfo* const ptr_info) override;
+  std::string key_;
+  std::string value_;
+  int64_t server_id_;
+  int32_t exec_time_;
+  int32_t number_;
+  int64_t offset_;
 };
 
-class InfoCmd : public Cmd {
- public:
-  InfoCmd() {}
-  virtual void Do() override;
-
- private:
-  virtual void DoInitial(const PikaCmdArgsType &argvs,
-      const CmdInfo* const ptr_info) override;
-};
-#endif  // SRC_PIKA_HUB_ADMIN_H_
+#endif  // SRC_PIKA_HUB_SYNC_COMMAND_H_

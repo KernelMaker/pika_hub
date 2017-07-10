@@ -45,6 +45,8 @@ class PikaHubInnerServerHandler : public pink::ServerHandle {
   virtual ~PikaHubInnerServerHandler() {}
 
   virtual bool AccessHandle(std::string& ip) const override;
+  int CreateWorkerSpecificData(void** data) const override;
+  int DeleteWorkerSpecificData(void* data) const override;
   virtual void FdClosedHandle(int fd,
       const std::string& ip_port) const override;
 

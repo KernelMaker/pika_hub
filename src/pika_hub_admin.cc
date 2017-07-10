@@ -15,12 +15,24 @@
 extern PikaHubServer *g_pika_hub_server;
 extern PikaHubConf *g_pika_hub_conf;
 
+void PingCmd::DoInitial(const PikaCmdArgsType &argv,
+    const CmdInfo* const ptr_info) {
+  if (!ptr_info->CheckArg(argv.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNamePing);
+    return;
+  }
+}
+
+void PingCmd::Do() {
+  res_.SetRes(CmdRes::kPong);
+  return;
+}
+
 void InfoCmd::DoInitial(const PikaCmdArgsType &argv,
     const CmdInfo* const ptr_info) {
-  (void)ptr_info;
-  size_t argc = argv.size();
-  if (argc != 1) {
-    res_.SetRes(CmdRes::kSyntaxErr);
+  if (!ptr_info->CheckArg(argv.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameInfo);
+    return;
   }
 }
 

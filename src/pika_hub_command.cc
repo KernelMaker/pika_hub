@@ -9,13 +9,27 @@
 #include <utility>
 
 #include "src/pika_hub_admin.h"
+#include "src/pika_hub_sync_command.h"
+
 /* Table for CmdInfo */
 static std::unordered_map<std::string, CmdInfo*> cmd_infos(100);
 
 void InitCmdInfoTable() {
-  CmdInfo* infoptr = new CmdInfo(kCmdNameInfo, -1,
+  // Ping
+  CmdInfo* pingptr = new CmdInfo(kCmdNamePing, 1,
+      kCmdFlagsRead | kCmdFlagsAdmin);
+  cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNamePing, pingptr));
+
+  // Info
+  CmdInfo* infoptr = new CmdInfo(kCmdNameInfo, 1,
       kCmdFlagsRead | kCmdFlagsAdmin);
   cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameInfo, infoptr));
+
+
+  // Set
+  CmdInfo* setptr = new CmdInfo(kCmdNameSet, 7,
+      kCmdFlagsWrite | kCmdFlagsAdmin);
+  cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameSet, setptr));
 }
 
 void DestoryCmdInfoTable() {
@@ -33,8 +47,18 @@ const CmdInfo* GetCmdInfo(const std::string& opt) {
 }
 
 void InitCmdTable(std::unordered_map<std::string, Cmd*> *cmd_table) {
+  // Ping
+  Cmd* pingptr = new PingCmd();
+  cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNamePing, pingptr));
+
+  // Info
   Cmd* infoptr = new InfoCmd();
   cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameInfo, infoptr));
+
+
+  // Set
+  Cmd* setptr = new SetCmd();
+  cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameSet, setptr));
 }
 
 Cmd* GetCmdFromTable(const std::string& opt, const CmdTable& cmd_table) {

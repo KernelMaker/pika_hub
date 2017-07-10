@@ -11,9 +11,28 @@
 
 extern PikaHubServer* g_pika_hub_server;
 
+void PikaHubInnerClientConn::DoCmd(const std::string& opt) {
+  // Get command info
+  const CmdInfo* const cinfo_ptr = GetCmdInfo(opt);
+  Cmd* c_ptr = GetCmdFromTable(opt, *cmds_table_);
+  if (!cinfo_ptr || !c_ptr) {
+    return;
+  }
+  // Initial
+  c_ptr->Initial(argv_, cinfo_ptr);
+  if (!c_ptr->res().ok()) {
+    return;
+  }
+
+  c_ptr->Do();
+}
+
 int PikaHubInnerClientConn::DealMessage() {
   g_pika_hub_server->PlusQueryNum();
 
-  std::cout << argv_[0] << " " << argv_.size() << std::endl;
+  std::string opt = argv_[0];
+  slash::StringToLower(opt);
+  DoCmd(opt);
+
   return 0;
 }

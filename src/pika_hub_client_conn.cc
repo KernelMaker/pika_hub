@@ -31,9 +31,6 @@ std::string PikaHubClientConn::DoCmd(const std::string& opt) {
 int PikaHubClientConn::DealMessage() {
   g_pika_hub_server->PlusQueryNum();
 
-  if (argv_.empty()) {
-    return -2;
-  }
   std::string opt = argv_[0];
   slash::StringToLower(opt);
   std::string res = DoCmd(opt);

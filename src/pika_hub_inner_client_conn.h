@@ -15,11 +15,17 @@ class PikaHubInnerClientConn : public pink::RedisConn {
  public:
   PikaHubInnerClientConn(int fd, const std::string& ip_port,
       pink::ServerThread* server_thread, void* worker_specific_data) :
-    pink::RedisConn(fd, ip_port, server_thread) {}
+    pink::RedisConn(fd, ip_port, server_thread),
+    cmds_table_(reinterpret_cast<CmdTable*>(worker_specific_data)) {}
 
   virtual ~PikaHubInnerClientConn() {}
 
   virtual int DealMessage() override;
+
+ private:
+  CmdTable* const cmds_table_;
+
+  void DoCmd(const std::string& opt);
 };
 
 class PikaHubInnerClientConnFactory : public pink::ConnFactory {

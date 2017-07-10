@@ -60,6 +60,21 @@ bool PikaHubInnerServerHandler::AccessHandle(std::string& ip) const {
   return pika_hub_server_->IsValidClient(ip);
 }
 
+int PikaHubInnerServerHandler::CreateWorkerSpecificData(void** data) const {
+  CmdTable* cmds = new CmdTable;
+  cmds->reserve(100);
+  InitCmdTable(cmds);
+  *data = reinterpret_cast<void*>(cmds);
+  return 0;
+}
+
+int PikaHubInnerServerHandler::DeleteWorkerSpecificData(void* data) const {
+  CmdTable* cmds = reinterpret_cast<CmdTable*>(data);
+  DestoryCmdTable(cmds);
+  delete cmds;
+  return 0;
+}
+
 void PikaHubInnerServerHandler::FdClosedHandle(int fd,
     const std::string& ip_port) const {
   pika_hub_server_->ResetRcvNumber(ip_port);

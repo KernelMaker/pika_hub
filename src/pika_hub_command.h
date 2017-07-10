@@ -16,7 +16,11 @@
 
 
 //  Constant for command name
+const char kCmdNamePing[] = "ping";
 const char kCmdNameInfo[] = "info";
+
+//  Sync command
+const char kCmdNameSet[] = "set";
 
 typedef pink::RedisCmdArgsType PikaCmdArgsType;
 
@@ -123,6 +127,7 @@ class CmdRes {
     kInvalidParameter,
     kWrongNum,
     kInvalidIndex,
+    kInvalidMagic,
     kErrOther,
   };
 
@@ -186,6 +191,9 @@ class CmdRes {
       break;
     case kInvalidIndex:
       result = "-ERR invalid DB index\r\n";
+      break;
+    case kInvalidMagic:
+      result = "-ERR invalid magic number\r\n";
       break;
     case kErrOther:
       result = "-ERR ";
