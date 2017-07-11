@@ -12,16 +12,34 @@
 #include "src/pika_hub_common.h"
 #include "src/pika_hub_binlog_manager.h"
 #include "rocksutil/file_reader_writer.h"
+#include "rocksutil/coding.h"
 
 uint64_t BinlogWriter::GetOffsetInFile() {
   return writer_->file()->GetFileSize();
 }
 
-rocksutil::Status BinlogWriter::Append(const std::string& str) {
+rocksutil::Status BinlogWriter::Append(uint8_t op, const std::string& key,
+    const std::string& value, int32_t server_id,
+    int32_t exec_time) {
   rocksutil::MutexLock l(manager_->mutex());
   if (GetOffsetInFile() >= kMaxBinlogFileSize) {
     RollFile();
   }
+
+  rocksutil::Cache::Handle* handle = manager_->lru_cache()->Lookup(key);
+  if (handle) {
+    int32_t _exec_time = static_cast<CacheEntity*>(
+        manager_->lru_cache()->Value(handle))->exec_time;
+    if (exec_time <= _exec_time) {
+      return rocksutil::Status::OK();
+    }
+  }
+  CacheEntity* entity = new CacheEntity(server_id, exec_time);
+  manager_->lru_cache()->Insert(key, entity, 1, &CacheEntityDeleter);
+
+  std::string str = EncodeBinlogContent(op, key, value,
+      server_id, exec_time);
+
   rocksutil::Status s = writer_->AddRecord(str);
   manager_->UpdateWriterOffset(number_, GetOffsetInFile());
   manager_->cv()->SignalAll();
@@ -58,6 +76,29 @@ void BinlogWriter::RollFile() {
     number_++;
   }
 }
+
+void BinlogWriter::CacheEntityDeleter(const rocksutil::Slice& key,
+    void* value) {
+  delete static_cast<CacheEntity*>(value);
+}
+
+
+std::string BinlogWriter::EncodeBinlogContent(uint8_t op,
+    const std::string& key, const std::string& value,
+    int32_t server_id, int32_t exec_time) {
+  std::string result;
+  result.clear();
+
+  result.append(reinterpret_cast<char*>(&op), sizeof(uint8_t));
+  rocksutil::PutFixed32(&result, server_id);
+  rocksutil::PutFixed32(&result, exec_time);
+  rocksutil::PutFixed32(&result, key.size());
+  result.append(key.data(), key.size());
+  result.append(value.data(), value.size());
+
+  return result;
+}
+
 
 BinlogWriter* CreateBinlogWriter(const std::string& log_path,
     uint64_t number, rocksutil::Env* env,

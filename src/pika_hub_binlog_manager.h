@@ -6,9 +6,12 @@
 #ifndef SRC_PIKA_HUB_BINLOG_MANAGER_H_
 #define SRC_PIKA_HUB_BINLOG_MANAGER_H_
 
+#include <string>
+#include <memory>
+
 #include "src/pika_hub_binlog_writer.h"
 #include "src/pika_hub_binlog_reader.h"
-#include <string>
+#include "rocksutil/cache.h"
 
 class BinlogManager {
  public:
@@ -17,7 +20,8 @@ class BinlogManager {
       uint64_t number)
     : log_path_(log_path), env_(env),
     number_(number), offset_(0),
-    cv_(&mutex_) {}
+    cv_(&mutex_),
+    lru_cache_(rocksutil::NewLRUCache(1000000)) {}
 
   BinlogWriter* AddWriter();
   BinlogReader* AddReader(uint64_t number, uint64_t offset);
@@ -30,6 +34,10 @@ class BinlogManager {
     return &cv_;
   }
 
+  std::shared_ptr<rocksutil::Cache> lru_cache() {
+    return lru_cache_;
+  }
+
   void UpdateWriterOffset(uint64_t number, uint64_t offset);
   void GetWriterOffset(uint64_t* number, uint64_t* offset);
 
@@ -40,6 +48,7 @@ class BinlogManager {
   uint64_t offset_;
   rocksutil::port::Mutex mutex_;
   rocksutil::port::CondVar cv_;
+  std::shared_ptr<rocksutil::Cache> lru_cache_;
 };
 
 extern BinlogManager* CreateBinlogManager(const std::string& log_path,

@@ -6,12 +6,16 @@
 #ifndef SRC_PIKA_HUB_COMMON_H_
 #define SRC_PIKA_HUB_COMMON_H_
 
+#include <string>
+
 struct ConnPrivateData {
 };
 
 struct PikaStatus {
   bool should_trysync = true;
   bool should_delete = false;
+  int32_t server_id = -1;
+  int32_t port;
   int32_t rcv_fd = -1;
   int32_t send_fd = -1;
   uint64_t rcv_number = 0;
@@ -19,6 +23,17 @@ struct PikaStatus {
   uint64_t send_number = 1;
   uint64_t send_offset = 0;
   void* sender = nullptr;
+  std::string ip;
+  std::string passwd;
+};
+
+struct CacheEntity {
+  CacheEntity(int32_t _server_id,
+      int32_t _exec_time)
+    : server_id(_server_id),
+      exec_time(_exec_time) {}
+  int32_t server_id;
+  int32_t exec_time;
 };
 
 const char kBinlogPrefix[] = "binlog_";

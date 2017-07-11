@@ -12,7 +12,7 @@
 #include "slash/include/slash_status.h"
 
 bool PikaHubTrysync::Send(pink::PinkCli* cli,
-    const std::map<std::string, PikaStatus>::iterator& iter) {
+    const std::map<int32_t, PikaStatus>::iterator& iter) {
   pink::RedisCmdArgsType argv;
   std::string wbuf_str;
 
@@ -30,54 +30,57 @@ bool PikaHubTrysync::Send(pink::PinkCli* cli,
 
   slash::Status s = cli->Send(&wbuf_str);
   if (!s.ok()) {
-    Error(info_log_, "Connect master %s, Send, error: %s",
-      iter->first.c_str(), s.ToString().c_str());
+    Error(info_log_, "Connect master %d,%s:%d, Send, error: %s",
+      iter->first, iter->second.ip.c_str(), iter->second.port,
+      s.ToString().c_str());
     return false;
   }
   return true;
 }
 
 bool PikaHubTrysync::Recv(pink::PinkCli* cli,
-    const std::map<std::string, PikaStatus>::iterator& iter) {
+    const std::map<int32_t, PikaStatus>::iterator& iter) {
   slash::Status s;
   std::string reply;
 
   pink::RedisCmdArgsType argv;
   s = cli->Recv(&argv);
   if (!s.ok()) {
-    Error(info_log_, "Connect master %s, Recv, error: %s",
-      iter->first.c_str(), strerror(errno));
+    Error(info_log_, "Connect master %d,%s:%d, Recv, error: %s",
+      iter->first, iter->second.ip.c_str(), iter->second.port,
+      strerror(errno));
     return false;
   }
 
   reply = slash::StringToLower(argv[0]);
 
   if (reply != "ok") {
-    Error(info_log_, "Connect master %s, Recv, logic error: %s",
-      iter->first.c_str(), reply.c_str());
+    Error(info_log_, "Connect master %d,%s:%d, Recv, logic error: %s",
+      iter->first, iter->second.ip.c_str(), iter->second.port,
+      reply.c_str());
     return false;
   }
   iter->second.should_trysync = false;
   return true;
 }
 
-void PikaHubTrysync::Trysync(const std::map<std::string, PikaStatus>::
+void PikaHubTrysync::Trysync(const std::map<int32_t, PikaStatus>::
     iterator& iter) {
   pink::PinkCli* cli = pink::NewRedisCli();
   cli->set_connect_timeout(1500);
   std::string master_ip;
-  int master_port;
-  slash::ParseIpPortString(iter->first, master_ip, master_port);
-  if ((cli->Connect(master_ip, master_port)).ok()) {
-    cli->set_send_timeout(30000);
-    cli->set_recv_timeout(30000);
+  if ((cli->Connect(iter->second.ip, iter->second.port)).ok()) {
+    cli->set_send_timeout(3000);
+    cli->set_recv_timeout(3000);
     if (Send(cli, iter) && Recv(cli, iter)) {
-      Info(info_log_, "Trysync %s success", iter->first.c_str());
+      Info(info_log_, "Trysync %d,%s:%d success", iter->first,
+          iter->second.ip.c_str(), iter->second.port);
     }
     cli->Close();
     delete cli;
   } else {
-    Error(info_log_, "Trysync %s failed", iter->first.c_str());
+    Error(info_log_, "Trysync %d,%s:%d failed", iter->first,
+          iter->second.ip.c_str(), iter->second.port);
   }
 }
 
@@ -95,7 +98,7 @@ void* PikaHubTrysync::ThreadMain() {
       }
     }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
   }
   return nullptr;
 }

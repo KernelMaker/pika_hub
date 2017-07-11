@@ -8,16 +8,20 @@
 #include "src/pika_hub_binlog_sender.h"
 
 void* BinlogSender::ThreadMain() {
-  std::string scratch;
-  rocksutil::Slice record;
   rocksutil::Status s;
+  uint8_t op;
+  std::string key;
+  std::string value;
+  int32_t server_id;
+  int32_t exec_time;
   while (!should_stop()) {
-    s = reader_->ReadRecord(&record, &scratch);
+    s = reader_->ReadRecord(&op, &key, &value, &server_id, &exec_time);
     if (s.ok()) {
-//      Info(info_log_, std::string(record.data(), record.size()).c_str());
-      Info(info_log_, std::to_string(record.size()).c_str());
+      Info(info_log_,
+          "op: %d, key: %s, value: %s, server_id: %d, exec_time: %d",
+          op, key.c_str(), value.c_str(), server_id, exec_time);
     } else {
-      Error(info_log_, s.ToString().c_str());
+      Error(info_log_, "ReadRecord, error: %s", s.ToString().c_str());
     }
   }
   return nullptr;

@@ -142,7 +142,7 @@ class PikaHubServer {
   BinlogWriter* binlog_writer_;
   BinlogSender* binlog_sender_;
   bool CheckPikaServers();
-  std::map<std::string, PikaStatus> pika_servers_;
+  std::map<int32_t, PikaStatus> pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex pika_mutex_;
 

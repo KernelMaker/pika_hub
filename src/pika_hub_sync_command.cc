@@ -16,6 +16,8 @@
 
 extern PikaHubServer *g_pika_hub_server;
 
+const uint8_t kSetOPCode = 1;
+
 void SetCmd::DoInitial(const PikaCmdArgsType &argv,
     const CmdInfo* const ptr_info) {
   if (!ptr_info->CheckArg(argv.size())) {
@@ -35,8 +37,7 @@ void SetCmd::DoInitial(const PikaCmdArgsType &argv,
 }
 
 void SetCmd::Do() {
-  std::cout << "set " << key_ << " " << value_ << " " <<
-    server_id_ << " " << exec_time_ << " " << number_ << " " <<
-    offset_ << std::endl;
+  g_pika_hub_server->binlog_writer()->Append(kSetOPCode, key_,
+      value_, server_id_, exec_time_);
   return;
 }

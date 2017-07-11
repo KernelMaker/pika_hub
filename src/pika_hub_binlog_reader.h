@@ -29,7 +29,10 @@ class BinlogReader {
     delete reader_;
   }
 
-  rocksutil::Status ReadRecord(rocksutil::Slice* slice, std::string* scratch);
+  rocksutil::Status ReadRecord(uint8_t* op,
+    std::string* key, std::string* value,
+    int32_t* server_id, int32_t* exec_time);
+
   bool IsEOF() {
     return reader_->IsEOF();
   }
@@ -44,6 +47,9 @@ class BinlogReader {
 
  private:
   bool TryToRollFile();
+  static void DecodeBinlogContent(const rocksutil::Slice& content,
+      uint8_t* op, std::string* key, std::string* value,
+      int32_t* server_id, int32_t* exec_time);
   rocksutil::log::Reader* reader_;
   std::string log_path_;
   uint64_t number_;

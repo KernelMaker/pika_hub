@@ -11,6 +11,7 @@
 #include "rocksutil/log_writer.h"
 #include "rocksutil/mutexlock.h"
 #include "rocksutil/env.h"
+#include "rocksutil/slice.h"
 
 class BinlogManager;
 class BinlogWriter {
@@ -28,7 +29,9 @@ class BinlogWriter {
   }
 
   uint64_t GetOffsetInFile();
-  rocksutil::Status Append(const std::string& str);
+  rocksutil::Status Append(uint8_t op, const std::string& key,
+      const std::string& value, int32_t server_id,
+      int32_t exec_time);
 
   uint64_t number() {
     return number_;
@@ -36,6 +39,11 @@ class BinlogWriter {
 
  private:
   void RollFile();
+  static void CacheEntityDeleter(const rocksutil::Slice& key, void* value);
+  static std::string EncodeBinlogContent(uint8_t op,
+      const std::string& key, const std::string& value,
+      int32_t server_id, int32_t exec_time);
+
   rocksutil::log::Writer* writer_;
   std::string log_path_;
   uint64_t number_;

@@ -12,21 +12,26 @@
 #include "src/pika_hub_common.h"
 #include "src/pika_hub_binlog_manager.h"
 #include "rocksutil/file_reader_writer.h"
+#include "rocksutil/coding.h"
 
 void BinlogReader::StopRead() {
   should_exit_ = true;
   manager_->cv()->SignalAll();
 }
 
-rocksutil::Status BinlogReader::ReadRecord(rocksutil::Slice* slice,
-    std::string* scratch) {
+rocksutil::Status BinlogReader::ReadRecord(uint8_t* op,
+    std::string* key, std::string* value,
+    int32_t* server_id, int32_t* exec_time) {
   bool ret = true;
   uint64_t writer_number = 0;
   uint64_t writer_offset = 0;
   uint64_t reader_offset = 0;
+  std::string scratch;
+  rocksutil::Slice record;
   while (true) {
-    ret = reader_->ReadRecord(slice, scratch);
+    ret = reader_->ReadRecord(&record, &scratch);
     if (ret) {
+      DecodeBinlogContent(record, op, key, value, server_id, exec_time);
       return rocksutil::Status::OK();
     } else {
       if (status_.ok()) {
@@ -90,6 +95,19 @@ bool BinlogReader::TryToRollFile() {
     return true;
   }
   return false;
+}
+
+void BinlogReader::DecodeBinlogContent(const rocksutil::Slice& content,
+    uint8_t* op, std::string* key, std::string* value,
+    int32_t* server_id, int32_t* exec_time) {
+  *op = static_cast<uint8_t>(content.data()[0]);
+  *server_id = rocksutil::DecodeFixed32(content.data() + 1);
+  *exec_time = rocksutil::DecodeFixed32(content.data() + 5);
+  int32_t key_size = rocksutil::DecodeFixed32(content.data() + 9);
+  *key = std::string(content.data() + 13, key_size);
+  value->clear();
+  *value = std::string(content.data() + 13 + key_size,
+      content.size() - 13 - key_size);
 }
 
 BinlogReader* CreateBinlogReader(const std::string& log_path,

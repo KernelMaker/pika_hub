@@ -4,6 +4,7 @@
 //  of patent rights can be found in the PATENTS file in the same directory.
 
 #include <string>
+#include <cstring>
 
 #include "src/pika_hub_server.h"
 #include "src/pika_hub_command.h"
@@ -36,9 +37,9 @@ bool PikaHubServerHandler::AccessHandle(std::string& ip) const {
 
 void PikaHubServerHandler::CronHandle() const {
   pika_hub_server_->ResetLastSecQueryNum();
-  char buf[1024*1024];
-  memset(buf, 'a', 1024*1024);
-  pika_hub_server_->binlog_writer()->Append(std::string(buf));
+//  char buf[1024*1024];
+//  memset(buf, 'a', 1024*1024);
+//  pika_hub_server_->binlog_writer()->Append(std::string(buf));
 }
 
 int PikaHubServerHandler::CreateWorkerSpecificData(void** data) const {
@@ -163,12 +164,10 @@ slash::Status PikaHubServer::Start() {
 }
 
 bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
-  std::string _ip;
-  int port = 0;
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
-    slash::ParseIpPortString(iter->first, _ip, port);
-    if (_ip == ip && iter->second.rcv_fd == -1) {
+    if (iter->second.ip == ip && iter->second.rcv_fd == -1 &&
+        !(iter->second.should_trysync)) {
       rocksutil::Info(options_.info_log, "Check IP: %s success", ip.c_str());
       iter->second.rcv_fd = fd;
       return true;
@@ -180,13 +179,11 @@ bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
 
 void PikaHubServer::ResetRcvFd(int fd, const std::string& ip_port) {
   std::string ip;
-  std::string _ip;
   int unuse_port = 0;
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
     slash::ParseIpPortString(ip_port, ip, unuse_port);
-    slash::ParseIpPortString(iter->first, _ip, unuse_port);
-    if (_ip == ip && iter->second.rcv_fd == fd) {
+    if (iter->second.ip == ip && iter->second.rcv_fd == fd) {
       rocksutil::Info(options_.info_log, "Reset receive fd: %s",
           ip_port.c_str());
       iter->second.rcv_fd = -1;
@@ -199,7 +196,10 @@ std::string PikaHubServer::DumpPikaServers() {
   rocksutil::MutexLock l(&pika_mutex_);
   std::string res;
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
-    res += ("ip_port:" + iter->first +
+    res += ("server_id:" + std::to_string(iter->first) +
+        ", ip:" + iter->second.ip +
+        ", port:" + std::to_string(iter->second.port) +
+        ", password:" + iter->second.passwd +
         ", receive_fd:" + std::to_string(iter->second.rcv_fd) +
         ", recv_offset:" + std::to_string(iter->second.rcv_number) +
         ":" + std::to_string(iter->second.rcv_offset) +
@@ -213,20 +213,39 @@ std::string PikaHubServer::DumpPikaServers() {
 
 bool PikaHubServer::CheckPikaServers() {
   std::string str = options_.pika_servers;
-  std::string ip;
-  int port = 0;
+  char token[1024];
+  char* token_in;
   PikaStatus status;
+  int server_id = -1;
   size_t prev_pos = str.find_first_not_of(',', 0);
   size_t pos = str.find(',', prev_pos);
 
   while (prev_pos != std::string::npos || pos != std::string::npos) {
-    std::string token(str.substr(prev_pos, pos - prev_pos));
-    if (slash::ParseIpPortString(token, ip, port)) {
-      pika_servers_.insert(std::map<std::string, PikaStatus>::
-                        value_type(token, status));
-    } else {
-      return false;
+    memset(token, '\0', 1024);
+    strncpy(token, str.data() + prev_pos, pos - prev_pos);
+
+    token_in = std::strtok(token, ":");
+    status.ip = token_in != NULL ? token_in : "";
+
+    if (token_in) {
+      token_in = std::strtok(NULL, ":");
     }
+    status.port = token_in != NULL ? std::atoi(token_in) : -1;
+
+    if (token_in) {
+      token_in = std::strtok(NULL, ":");
+    }
+    server_id = token_in != NULL ? std::atoi(token_in) : -1;
+
+    if (token_in) {
+      token_in = std::strtok(NULL, ":");
+    }
+    status.passwd = token_in != NULL ?
+      std::string(token_in, strlen(token_in)) : "";
+
+    pika_servers_.insert(std::map<int32_t, PikaStatus>::
+                      value_type(server_id, status));
+
     prev_pos = str.find_first_not_of(',', pos);
     pos = str.find_first_of(',', prev_pos);
   }

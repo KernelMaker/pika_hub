@@ -22,7 +22,7 @@ class PikaHubTrysync : public pink::Thread {
   PikaHubTrysync(std::shared_ptr<rocksutil::Logger> info_log,
     std::string local_ip,
     int local_port,
-    std::map<std::string, PikaStatus>* pika_servers,
+    std::map<int32_t, PikaStatus>* pika_servers,
     rocksutil::port::Mutex* pika_mutex)
   : info_log_(info_log),
     local_ip_(local_ip),
@@ -46,15 +46,15 @@ class PikaHubTrysync : public pink::Thread {
   std::shared_ptr<rocksutil::Logger> info_log_;
   std::string local_ip_;
   int local_port_;
-  std::map<std::string, PikaStatus>* pika_servers_;
+  std::map<int32_t, PikaStatus>* pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex* pika_mutex_;
 
-  void Trysync(const std::map<std::string, PikaStatus>::iterator& iter);
+  void Trysync(const std::map<int32_t, PikaStatus>::iterator& iter);
   bool Send(pink::PinkCli* cli,
-        const std::map<std::string, PikaStatus>::iterator& iter);
+        const std::map<int32_t, PikaStatus>::iterator& iter);
   bool Recv(pink::PinkCli* cli,
-        const std::map<std::string, PikaStatus>::iterator& iter);
+        const std::map<int32_t, PikaStatus>::iterator& iter);
   virtual void* ThreadMain() override;
 };
 
