@@ -16,8 +16,6 @@
 
 extern PikaHubServer *g_pika_hub_server;
 
-const uint8_t kSetOPCode = 1;
-
 void SetCmd::DoInitial(const PikaCmdArgsType &argv,
     const CmdInfo* const ptr_info) {
   if (!ptr_info->CheckArg(argv.size())) {
@@ -37,7 +35,14 @@ void SetCmd::DoInitial(const PikaCmdArgsType &argv,
 }
 
 void SetCmd::Do() {
-  g_pika_hub_server->binlog_writer()->Append(kSetOPCode, key_,
-      value_, server_id_, exec_time_);
+  rocksutil::Status s = g_pika_hub_server->binlog_writer()->
+    Append(kSetOPCode, key_, value_, server_id_, exec_time_);
+  if (s.ok()) {
+    g_pika_hub_server->UpdateRcvOffset(server_id_,
+        number_, offset_);
+  } else {
+    Error(g_pika_hub_server->GetLogger(), "Append Entry Error: %s",
+        s.ToString().c_str());
+  }
   return;
 }

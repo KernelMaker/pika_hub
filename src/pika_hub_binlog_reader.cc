@@ -3,7 +3,6 @@
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
 
-#include <iostream>
 #include <utility>
 #include <memory>
 #include <string>
@@ -13,6 +12,11 @@
 #include "src/pika_hub_binlog_manager.h"
 #include "rocksutil/file_reader_writer.h"
 #include "rocksutil/coding.h"
+
+void BinlogReader::GetOffset(uint64_t* number, uint64_t* offset) {
+  *number = number_;
+  *offset = reader_->EndOfBufferOffset();
+}
 
 void BinlogReader::StopRead() {
   should_exit_ = true;
@@ -38,8 +42,6 @@ rocksutil::Status BinlogReader::ReadRecord(uint8_t* op,
         manager_->mutex()->Lock();
         manager_->GetWriterOffset(&writer_number, &writer_offset);
         reader_offset = reader_->EndOfBufferOffset();
-        std::cout << writer_number << " " << writer_offset << " " <<
-          number_ << " " << reader_offset << std::endl;
         while (number_ == writer_number && reader_offset == writer_offset) {
           manager_->cv()->Wait();
           if (should_exit_) {

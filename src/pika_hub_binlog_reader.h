@@ -36,6 +36,8 @@ class BinlogReader {
   bool IsEOF() {
     return reader_->IsEOF();
   }
+  void GetOffset(uint64_t* number, uint64_t* offset);
+
   void set_reader(rocksutil::log::Reader* reader) {
     reader_ = reader;
   }

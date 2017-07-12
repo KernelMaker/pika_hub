@@ -12,6 +12,7 @@
 
 #include "src/pika_hub_common.h"
 #include "src/pika_hub_binlog_sender.h"
+#include "src/pika_hub_binlog_manager.h"
 #include "pink/include/pink_cli.h"
 #include "pink/include/pink_thread.h"
 #include "rocksutil/mutexlock.h"
@@ -23,12 +24,14 @@ class PikaHubTrysync : public pink::Thread {
     std::string local_ip,
     int local_port,
     std::map<int32_t, PikaStatus>* pika_servers,
-    rocksutil::port::Mutex* pika_mutex)
+    rocksutil::port::Mutex* pika_mutex,
+    BinlogManager* manager)
   : info_log_(info_log),
     local_ip_(local_ip),
     local_port_(local_port),
     pika_servers_(pika_servers),
-    pika_mutex_(pika_mutex) {}
+    pika_mutex_(pika_mutex),
+    manager_(manager) {}
 
   virtual ~PikaHubTrysync() {
     set_should_stop();
@@ -49,6 +52,7 @@ class PikaHubTrysync : public pink::Thread {
   std::map<int32_t, PikaStatus>* pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex* pika_mutex_;
+  BinlogManager* manager_;
 
   void Trysync(const std::map<int32_t, PikaStatus>::iterator& iter);
   bool Send(pink::PinkCli* cli,

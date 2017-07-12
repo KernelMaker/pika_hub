@@ -36,6 +36,9 @@ struct CacheEntity {
   int32_t exec_time;
 };
 
+const uint8_t kSetOPCode = 1;
+const uint8_t kDeleteOPCode = 2;
+
 const char kBinlogPrefix[] = "binlog_";
 const int32_t kMaxBinlogFileSize = 100 * 1024 * 1024;
 const char kBinlogMagic[] = "__PIKA_X#$SKGI";

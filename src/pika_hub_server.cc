@@ -37,9 +37,6 @@ bool PikaHubServerHandler::AccessHandle(std::string& ip) const {
 
 void PikaHubServerHandler::CronHandle() const {
   pika_hub_server_->ResetLastSecQueryNum();
-//  char buf[1024*1024];
-//  memset(buf, 'a', 1024*1024);
-//  pika_hub_server_->binlog_writer()->Append(std::string(buf));
 }
 
 int PikaHubServerHandler::CreateWorkerSpecificData(void** data) const {
@@ -96,15 +93,13 @@ PikaHubServer::PikaHubServer(const Options& options)
   inner_server_thread_->set_keepalive_timeout(0);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env);
   trysync_thread_ = new PikaHubTrysync(options_.info_log, options.local_ip,
-      options.port, &pika_servers_, &pika_mutex_);
+      options.port, &pika_servers_, &pika_mutex_, binlog_manager_);
   binlog_writer_ = binlog_manager_->AddWriter();
-  binlog_sender_ = nullptr;
 }
 
 PikaHubServer::~PikaHubServer() {
   server_thread_->StopThread();
   inner_server_thread_->StopThread();
-  delete binlog_sender_;
   delete binlog_writer_;
   delete trysync_thread_;
   delete binlog_manager_;
@@ -148,15 +143,6 @@ slash::Status PikaHubServer::Start() {
   }
 
   rocksutil::Info(options_.info_log, "Started");
-  sleep(1);
-  BinlogReader* reader = binlog_manager_->AddReader(1, 0);
-  if (reader != nullptr) {
-    binlog_sender_ = new BinlogSender("127.0.0.1", 9221, options_.info_log,
-                          reader);
-    binlog_sender_->StartThread();
-  } else {
-    rocksutil::Info(options_.info_log, "Create Reader Failed");
-  }
   server_mutex_.Lock();
   server_mutex_.Lock();
   server_mutex_.Unlock();
@@ -187,6 +173,9 @@ void PikaHubServer::ResetRcvFd(int fd, const std::string& ip_port) {
       rocksutil::Info(options_.info_log, "Reset receive fd: %s",
           ip_port.c_str());
       iter->second.rcv_fd = -1;
+      iter->second.send_fd = -1;
+      delete static_cast<BinlogSender*>(iter->second.sender);
+      iter->second.sender = nullptr;
       iter->second.should_trysync = true;
     }
   }
@@ -209,6 +198,16 @@ std::string PikaHubServer::DumpPikaServers() {
         "\r\n");
   }
   return res;
+}
+
+void PikaHubServer::UpdateRcvOffset(int32_t server_id,
+    int32_t number, int64_t offset) {
+  rocksutil::MutexLock l(&pika_mutex_);
+  auto iter = pika_servers_.find(server_id);
+  if (iter != pika_servers_.end()) {
+    iter->second.rcv_number = number;
+    iter->second.rcv_offset = offset;
+  }
 }
 
 bool PikaHubServer::CheckPikaServers() {

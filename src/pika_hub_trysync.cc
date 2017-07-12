@@ -61,6 +61,23 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
     return false;
   }
   iter->second.should_trysync = false;
+  if (iter->second.sender == nullptr) {
+    BinlogReader* reader = manager_->AddReader(iter->second.send_number,
+        iter->second.send_offset);
+    if (reader) {
+      iter->second.sender = new BinlogSender(iter->first,
+          iter->second.ip, iter->second.port, info_log_, reader,
+          pika_servers_, pika_mutex_, manager_);
+      static_cast<BinlogSender*>(iter->second.sender)->StartThread();
+      Info(info_log_, "Start BinlogSender success for %d,%s:%d(%llu %llu)",
+          iter->first, iter->second.ip.c_str(), iter->second.port,
+          iter->second.send_number, iter->second.send_offset);
+    } else {
+      Error(info_log_, "Start BinlogSender Failed for %d,%s:%d(%llu %llu)",
+          iter->first, iter->second.ip.c_str(), iter->second.port,
+          iter->second.send_number, iter->second.send_offset);
+    }
+  }
   return true;
 }
 
@@ -79,7 +96,7 @@ void PikaHubTrysync::Trysync(const std::map<int32_t, PikaStatus>::
     cli->Close();
     delete cli;
   } else {
-    Error(info_log_, "Trysync %d,%s:%d failed", iter->first,
+    Error(info_log_, "Trysync connect %d,%s:%d failed", iter->first,
           iter->second.ip.c_str(), iter->second.port);
   }
 }
@@ -93,7 +110,7 @@ void* PikaHubTrysync::ThreadMain() {
         delete static_cast<BinlogSender*>(it->second.sender);
         it = pika_servers_->erase(it);
       }
-      if (it->second.should_trysync && it->second.sender == nullptr) {
+      if (it->second.should_trysync) {
         Trysync(it);
       }
     }

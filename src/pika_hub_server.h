@@ -8,6 +8,7 @@
 
 #include <map>
 #include <string>
+#include <memory>
 
 #include "src/pika_hub_options.h"
 #include "src/pika_hub_common.h"
@@ -79,6 +80,10 @@ class PikaHubServer {
     return binlog_manager_;
   }
 
+  std::shared_ptr<rocksutil::Logger> GetLogger() {
+    return options_.info_log;
+  }
+
   void PlusAccConnections() {
     statistic_data_.acc_connections++;
   }
@@ -106,6 +111,8 @@ class PikaHubServer {
   bool IsValidInnerClient(int fd, const std::string& ip);
   void ResetRcvFd(int fd, const std::string& ip_port);
   std::string DumpPikaServers();
+  void UpdateRcvOffset(int32_t server_id,
+      int32_t number, int64_t offset);
 
  private:
   rocksutil::Env* env_;
@@ -140,7 +147,6 @@ class PikaHubServer {
   BinlogManager* binlog_manager_;
   PikaHubTrysync* trysync_thread_;
   BinlogWriter* binlog_writer_;
-  BinlogSender* binlog_sender_;
   bool CheckPikaServers();
   std::map<int32_t, PikaStatus> pika_servers_;
   // protect pika_servers_

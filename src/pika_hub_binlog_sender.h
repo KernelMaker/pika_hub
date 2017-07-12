@@ -8,18 +8,29 @@
 
 #include <memory>
 #include <string>
+#include <map>
 
 #include "src/pika_hub_binlog_reader.h"
+#include "src/pika_hub_common.h"
 #include "pink/include/pink_thread.h"
+#include "rocksutil/mutexlock.h"
 
 class BinlogSender : public pink::Thread {
  public:
-  BinlogSender(const std::string& ip, const int32_t port,
-    std::shared_ptr<rocksutil::Logger> info_log,
-    BinlogReader* reader)
-  : ip_(ip), port_(port),
+  BinlogSender(int32_t server_id, const std::string& ip,
+      const int32_t port,
+      std::shared_ptr<rocksutil::Logger> info_log,
+    BinlogReader* reader,
+    std::map<int32_t, PikaStatus>* pika_servers,
+    rocksutil::port::Mutex* pika_mutex,
+    BinlogManager* manager)
+  : server_id_(server_id),
+    ip_(ip), port_(port),
     info_log_(info_log),
-    reader_(reader) {}
+    reader_(reader),
+    pika_servers_(pika_servers),
+    pika_mutex_(pika_mutex),
+    manager_(manager) {}
 
   virtual ~BinlogSender() {
     set_should_stop();
@@ -28,11 +39,18 @@ class BinlogSender : public pink::Thread {
     delete reader_;
   }
 
+  void UpdateSendOffset();
+
  private:
+  int32_t server_id_;
   std::string ip_;
   int32_t port_;
   std::shared_ptr<rocksutil::Logger> info_log_;
   BinlogReader* reader_;
+  std::map<int32_t, PikaStatus>* pika_servers_;
+  // protect pika_servers_
+  rocksutil::port::Mutex* pika_mutex_;
+  BinlogManager* manager_;
 
   virtual void* ThreadMain() override;
 };
