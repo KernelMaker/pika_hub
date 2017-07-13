@@ -123,6 +123,9 @@ void* BinlogSender::ThreadMain() {
           break;
       }
 
+    } else if (read_status.IsCorruption() &&
+            read_status.ToString() == "Corruption: Exit") {
+      Info(info_log_, "BinlogSender Reader exit");
     } else {
       Error(info_log_, "BinlogSender ReadRecord, error: %s",
           read_status.ToString().c_str());

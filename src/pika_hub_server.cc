@@ -15,7 +15,7 @@ Options SanitizeOptions(const Options& options) {
   if (result.info_log == nullptr) {
     rocksutil::Status s = rocksutil::CreateLogger(result.info_log_path,
         &result.info_log, result.env, result.max_log_file_size,
-        result.log_file_time_to_roll, result.info_log_level);
+        result.log_file_time_to_roll, result.info_log_level, 0);
     if (!s.ok()) {
       result.info_log = nullptr;
     }
