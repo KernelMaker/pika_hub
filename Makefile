@@ -1,57 +1,79 @@
-RPATH = /usr/local/pika22/
-LFLAGS = -Wl,-rpath=$(RPATH)
+CLEAN_FILES = # deliberately empty, so we can append below.
+CFLAGS += ${EXTRA_CFLAGS}
+CXXFLAGS += ${EXTRA_CXXFLAGS}
+LDFLAGS += $(EXTRA_LDFLAGS)
+ARFLAGS = rs
+OPT=
 
-UNAME := $(shell if [ -f "/etc/redhat-release" ]; then echo "CentOS"; else echo "Ubuntu"; fi)
+# DEBUG_LEVEL can have two values:
+# * DEBUG_LEVEL=2; this is the ultimate debug mode. It will compile pika_hub
+# without any optimizations. To compile with level 2, issue `make dbg`
+# * DEBUG_LEVEL=0; this is the debug level we use for release. If you're
+# running pika_hub in production you most definitely want to compile pika_hub
+# with debug level 0. To compile with level 0, run `make`,
 
-OSVERSION := $(shell cat /etc/redhat-release | cut -d "." -f 1 | awk '{print $$NF}')
+# Set the default DEBUG_LEVEL to 0
+DEBUG_LEVEL?=0
 
-ifeq ($(UNAME), Ubuntu)
-  SO_PATH = $(CURDIR)/lib/ubuntu
-else ifeq ($(OSVERSION), 5)
-  SO_PATH = $(CURDIR)/lib/5.4
-else
-  SO_PATH = $(CURDIR)/lib/6.2
+ifeq ($(MAKECMDGOALS),dbg)
+  DEBUG_LEVEL=2
 endif
 
-CXX = g++
-
-ifeq ($(__PERF), 1)
-#CXXFLAGS = -Wall -W -DDEBUG -g -O0 -D__XDEBUG__ -fPIC -Wno-unused-function -std=c++11
-	CXXFLAGS = -O0 -g -pipe -pg -fPIC -W -DDEBUG -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wno-unused-parameter -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-redundant-decls -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX
-else
-	CXXFLAGS = -O2 -g -gstabs+ -pipe -fPIC -W -DNDEBUG -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wno-unused-parameter -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -Wno-redundant-decls -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX -DROCKSUTIL_PTHREAD_ADAPTIVE_MUTEX
+ifeq ($(MAKECMDGOALS),clean)
+  DEBUG_LEVEL=0
 endif
 
-SRC_PATH = ./src/
-THIRD_PATH = ./third
-OUTPUT = ./output
-VERSION = -D_GITVER_=$(shell git rev-list HEAD | head -n1) \
-					-D_COMPILEDATE_=$(shell date +%F)
+ifeq ($(MAKECMDGOALS),distclean)
+  DEBUG_LEVEL=0
+endif
+
+# compile with -O2 if debug level is not 2
+ifneq ($(DEBUG_LEVEL), 2)
+OPT += -O2 -fno-omit-frame-pointer
+# if we're compiling for release, compile without debug code (-DNDEBUG) and
+# don't treat warnings as errors
+OPT += -DNDEBUG
+DISABLE_WARNING_AS_ERROR=1
+# Skip for archs that don't support -momit-leaf-frame-pointer
+ifeq (,$(shell $(CXX) -fsyntax-only -momit-leaf-frame-pointer -xc /dev/null 2>&1))
+OPT += -momit-leaf-frame-pointer
+endif
+else
+$(warning Warning: Compiling in debug mode. Don't use the resulting binary in production)
+DEBUG_SUFFIX = "_debug"
+endif
+
+OUTPUT = $(CURDIR)/output
+THIRD_PATH = $(CURDIR)/third
+SRC_PATH = $(CURDIR)/src
+
+# ----------------Dependences-------------------
+
 
 ifndef SLASH_PATH
 SLASH_PATH = $(realpath $(THIRD_PATH)/slash)
 endif
+SLASH = $(SLASH_PATH)/slash/lib/libslash$(DEBUG_SUFFIX).a
 
 ifndef PINK_PATH
 PINK_PATH = $(realpath $(THIRD_PATH)/pink)
 endif
+PINK = $(PINK_PATH)/pink/lib/libpink.a
 
 ifndef ROCKSDB_PATH
 ROCKSDB_PATH = $(realpath $(THIRD_PATH)/rocksdb)
 endif
+ROCKSDB = $(ROCKSDB_PATH)/librocksdb.a
 
 ifndef FLOYD_PATH
 FLOYD_PATH = $(realpath $(THIRD_PATH)/floyd)
 endif
+FLOYD = $(FLOYD_PATH)/floyd/lib/libfloyd.a
 
+ifndef ROCKSUTIL_PATH
 ROCKSUTIL_PATH = $(realpath $(THIRD_PATH)/rocksutil)
-
-SRC = $(wildcard $(SRC_PATH)/*.cc)
-OBJS = $(patsubst %.cc,%.o,$(SRC))
-
-
-PIKA_HUB = pika_hub
-
+endif
+ROCKSUTIL = $(ROCKSUTIL_PATH)/librocksutil$(DEBUG_SUFFIX).a
 
 INCLUDE_PATH = -I./ \
 							 -I$(SLASH_PATH)/ \
@@ -68,74 +90,170 @@ LIB_PATH = -L./ \
 					 -L$(ROCKSDB_PATH) \
 					 -L$(ROCKSUTIL_PATH)
 
-LIBS = -lpthread \
-			 -lprotobuf \
-			 -lfloyd \
-			 -lpink \
-			 -lslash \
-			 -lz \
-			 -lbz2 \
-			 -lrocksdb \
-			 -lsnappy \
-			 -lrt \
-			 -lcrypto \
-			 -lssl \
-			 -lrocksutil
+LDFLAGS += $(LIB_PATH) \
+					 -lprotobuf \
+			 		 -lfloyd \
+			 		 -lpink \
+			 		 -lslash$(DEBUG_SUFFIX) \
+			 		 -lz \
+			 		 -lbz2 \
+			 		 -lrocksdb \
+			 		 -lsnappy \
+			 		 -lrocksutil$(DEBUG_SUFFIX)
 
-FLOYD = $(FLOYD_PATH)/floyd/lib/libfloyd.a
-ROCKSDB = $(ROCKSDB_PATH)/output/lib/librocksdb.a
-PINK = $(PINK_PATH)/pink/lib/libpink.a
-SLASH = $(SLASH_PATH)/slash/lib/libslash.a
-ROCKSUTIL = $(ROCKSUTIL_PATH)/rocksutil/librocksutil.a
-
-.PHONY: all clean distclean
+# ---------------End Dependences----------------
 
 
-all: $(PIKA_HUB)
-	@echo "OBJS $(OBJS)"
-	echo "PINK_PATH $(PINK_PATH)"
-	echo "SLASH_PATH $(SLASH_PATH)"
-	echo "FLOYD_PATH $(FLOYD_PATH)"
-	echo "ROCKSDB_PATH $(ROCKSDB_PATH)"
-	rm -rf $(OUTPUT)
-	mkdir $(OUTPUT)
-	mkdir $(OUTPUT)/bin
-	mkdir $(OUTPUT)/lib
-#	cp -r $(SO_PATH)/*  $(OUTPUT)/lib
-	mv $(PIKA_HUB) $(OUTPUT)/bin/
-	cp -r conf $(OUTPUT)
-	@echo "Success, go, go, go..."
+#-----------------------------------------------
 
+include ./src.mk
 
-$(PIKA_HUB): $(FLOYD) $(PINK) $(SLASH) $(ROCKSUTIL) $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+AM_DEFAULT_VERBOSITY = 0
 
-$(OBJS): %.o : %.cc
-	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) $(VERSION)
+AM_V_GEN = $(am__v_GEN_$(V))
+am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
+am__v_GEN_0 = @echo "  GEN     " $@;
+am__v_GEN_1 =
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
+am__v_at_1 =
+
+AM_V_CC = $(am__v_CC_$(V))
+am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
+am__v_CC_0 = @echo "  CC      " $@;
+am__v_CC_1 =
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_$(V))
+am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
+am__v_CCLD_0 = @echo "  CCLD    " $@;
+am__v_CCLD_1 =
+AM_V_AR = $(am__v_AR_$(V))
+am__v_AR_ = $(am__v_AR_$(AM_DEFAULT_VERBOSITY))
+am__v_AR_0 = @echo "  AR      " $@;
+am__v_AR_1 =
+
+AM_LINK = $(AM_V_CCLD)$(CXX) $^ $(EXEC_LDFLAGS) -o $@ $(LDFLAGS) $(COVERAGEFLAGS)
+# detect what platform we're building on
+dummy := $(shell (export PIKA_HUB_ROOT="$(CURDIR)"; "$(CURDIR)/build_detect_platform" "$(CURDIR)/make_config.mk"))
+# this file is generated by the previous line to set build flags and sources
+include make_config.mk
+CLEAN_FILES += make_config.mk
+
+missing_make_config_paths := $(shell        \
+  grep "\/\S*" -o $(CURDIR)/make_config.mk |    \
+  while read path;          \
+    do [ -e $$path ] || echo $$path;    \
+  done | sort | uniq)
+
+$(foreach path, $(missing_make_config_paths), \
+  $(warning Warning: $(path) dont exist))
+
+ifneq ($(PLATFORM), IOS)
+CFLAGS += -g
+CXXFLAGS += -g
+else
+# no debug info for IOS, that will make our library big
+OPT += -DNDEBUG
+endif
+
+ifeq ($(PLATFORM), OS_SOLARIS)
+  PLATFORM_CXXFLAGS += -D _GLIBCXX_USE_C99
+endif
+
+# This (the first rule) must depend on "all".
+default: all
+
+WARNING_FLAGS = -W -Wextra -Wall -Wsign-compare \
+  							-Wno-unused-parameter -Woverloaded-virtual \
+								-Wnon-virtual-dtor -Wno-missing-field-initializers
+
+ifndef DISABLE_WARNING_AS_ERROR
+  WARNING_FLAGS += -Werror
+endif
+
+CFLAGS += $(WARNING_FLAGS) $(INCLUDE_PATH) $(PLATFORM_CCFLAGS) $(OPT)
+CXXFLAGS += $(WARNING_FLAGS) $(INCLUDE_PATH) $(PLATFORM_CXXFLAGS) $(OPT)
+
+LDFLAGS += $(PLATFORM_LDFLAGS)
+
+date := $(shell date +%F)
+git_sha := $(shell git rev-parse HEAD 2>/dev/null)
+gen_build_version = sed -e s/@@GIT_SHA@@/$(git_sha)/ -e s/@@GIT_DATE_TIME@@/$(date)/ src/build_version.cc.in
+# Record the version of the source that we are compiling.
+# We keep a record of the git revision in this file.  It is then built
+# as a regular source file as part of the compilation process.
+# One can run "strings executable_filename | grep _build_" to find
+# the version of the source that we used to build the executable file.
+CLEAN_FILES += src/build_version.cc
+
+src/build_version.cc: FORCE
+	$(AM_V_GEN)rm -f $@-t
+	$(AM_V_at)$(gen_build_version) > $@-t
+	$(AM_V_at)if test -f $@; then         \
+	  cmp -s $@-t $@ && rm -f $@-t || mv -f $@-t $@;    \
+	else mv -f $@-t $@; fi
+FORCE: 
+
+LIBOBJECTS = $(LIB_SOURCES:.cc=.o)
+
+# if user didn't config LIBNAME, set the default
+ifeq ($(BINNAME),)
+# we should only run pika_hub in production with DEBUG_LEVEL 0
+ifeq ($(DEBUG_LEVEL),0)
+        BINNAME=pika_hub
+else
+        BINNAME=pika_hub_debug
+endif
+endif
+BINARY = ${BINNAME}
+
+.PHONY: distclean clean tags dbg all
+
+.cc.o:
+	  $(AM_V_CC)$(CXX) $(CXXFLAGS) -c $< -o $@ $(COVERAGEFLAGS)
+
+.c.o:
+	  $(AM_V_CC)$(CC) $(CFLAGS) -c $< -o $@
+
+all: $(BINARY)
+
+dbg: $(BINARY)
+
+$(BINARY): $(FLOYD) $(PINK) $(SLASH) $(ROCKSUTIL) $(LIBOBJECTS)
+	$(AM_V_at)rm -f $@
+	$(AM_V_at)$(AM_LINK)
+	$(AM_V_at)rm -rf $(OUTPUT)
+	$(AM_V_at)mkdir -p $(OUTPUT)/bin
+	$(AM_V_at)mv $@ $(OUTPUT)/bin
+	$(AM_V_at)cp -r $(CURDIR)/conf $(OUTPUT)
+	
 
 $(FLOYD):
-	make -C $(FLOYD_PATH)/floyd/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH) ROCKSDB_PATH=$(ROCKSDB_PATH)
-
-$(ROCKSDB):
-	make -C $(ROCKSDB_PATH)/ static_lib
-
-$(SLASH):
-	make -C $(SLASH_PATH)/slash/ __PERF=$(__PERF)
+	make -C $(FLOYD_PATH)/floyd/ __PERF=$(DEBUG_LEVEL) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH) ROCKSDB_PATH=$(ROCKSDB_PATH)
 
 $(PINK):
-	make -C $(PINK_PATH)/pink/ __PERF=$(__PERF)  SLASH_PATH=$(SLASH_PATH)
+	make -C $(PINK_PATH)/pink/ __PERF=$(DEBUG_LEVEL)  SLASH_PATH=$(SLASH_PATH)
+
+$(SLASH):
+	make -C $(SLASH_PATH)/slash/ DEBUG_LEVEL=$(DEBUG_LEVEL)
 
 $(ROCKSUTIL):
-	make -C $(ROCKSUTIL_PATH)
+	make -C $(ROCKSUTIL_PATH) DEBUG_LEVEL=$(DEBUG_LEVEL)
 
-clean: 
-	rm -rf $(SRC_PATH)/*.o
-	rm -rf $(OUTPUT)
+$(ROCKSDB):
+	make -C $(ROCKSDB_PATH)/ static_lib DEBUG_LEVEL=$(DEBUG_LEVEL)
+
+clean:
+	rm -f $(BINARY)
+	rm -rf $(CLEAN_FILES)
+	find $(SRC_PATH) -name "*.[oda]" -exec rm -f {} \;
+	find $(SRC_PATH) -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
 
 distclean: clean
+	make -C $(FLOYD_PATH)/floyd clean
 	make -C $(PINK_PATH)/pink/ clean
 	make -C $(SLASH_PATH)/slash/ clean
-	make -C $(ROCKSDB_PATH)/ clean
-	make -C $(FLOYD_PATH)/floyd/ clean
 	make -C $(ROCKSUTIL_PATH) clean
-
+#	make -C $(ROCKSDB_PATH)/ clean

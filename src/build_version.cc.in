@@ -1,0 +1,4 @@
+#include "src/build_version.h"
+const char* pika_hub_build_git_sha = "pika_hub_build_git_sha:@@GIT_SHA@@";
+const char* pika_hub_build_git_date = "pika_hub_build_git_date:@@GIT_DATE_TIME@@";
+const char* pika_hub_build_compile_date = __DATE__;

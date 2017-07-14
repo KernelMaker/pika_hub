@@ -29,9 +29,13 @@ class PikaHubServerHandler : public pink::ServerHandle {
     }
   virtual ~PikaHubServerHandler() {}
 
+  using::pink::ServerHandle::AccessHandle;
   virtual bool AccessHandle(std::string& ip) const override;
+  using::pink::ServerHandle::CronHandle;
   virtual void CronHandle() const override;
+  using::pink::ServerHandle::CreateWorkerSpecificData;
   int CreateWorkerSpecificData(void** data) const override;
+  using::pink::ServerHandle::DeleteWorkerSpecificData;
   int DeleteWorkerSpecificData(void* data) const override;
 
  private:
@@ -45,9 +49,13 @@ class PikaHubInnerServerHandler : public pink::ServerHandle {
     }
   virtual ~PikaHubInnerServerHandler() {}
 
+  using::pink::ServerHandle::AccessHandle;
   virtual bool AccessHandle(int fd, std::string& ip) const override;
+  using::pink::ServerHandle::CreateWorkerSpecificData;
   int CreateWorkerSpecificData(void** data) const override;
+  using::pink::ServerHandle::DeleteWorkerSpecificData;
   int DeleteWorkerSpecificData(void* data) const override;
+  using::pink::ServerHandle::FdClosedHandle;
   virtual void FdClosedHandle(int fd,
       const std::string& ip_port) const override;
 

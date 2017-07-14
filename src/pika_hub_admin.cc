@@ -10,6 +10,8 @@
 #include "src/pika_hub_admin.h"
 #include "src/pika_hub_server.h"
 #include "src/pika_hub_conf.h"
+#include "src/pika_hub_version.h"
+#include "src/build_version.h"
 
 
 extern PikaHubServer *g_pika_hub_server;
@@ -41,6 +43,14 @@ void InfoCmd::Do() {
 
   std::stringstream tmp_stream;
 
+  tmp_stream << "# Server\r\n";
+  char version[30];
+  sprintf(version, "%d.%d.%d", PIKA_HUB_MAJOR,
+      PIKA_HUB_MINOR, PIKA_HUB_PATCH);
+  tmp_stream << "version: " << version << "\r\n";
+  tmp_stream << pika_hub_build_git_sha << "\r\n";
+  tmp_stream << "pika_hub_build_compile_date: " <<
+    pika_hub_build_compile_date << "\r\n";
   tmp_stream << "# Stats\r\n";
   tmp_stream << "total_connections_received:" <<
     g_pika_hub_server->acc_connections() << "\r\n";
