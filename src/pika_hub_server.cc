@@ -81,7 +81,8 @@ void PikaHubInnerServerHandler::FdClosedHandle(int fd,
 PikaHubServer::PikaHubServer(const Options& options)
   : env_(options.env),
     options_(SanitizeOptions(options)),
-    statistic_data_(options.env) {
+    statistic_data_(options.env),
+    should_exit_(false) {
   conn_factory_ = new PikaHubClientConnFactory();
   server_handler_ = new PikaHubServerHandler(this);
   server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000,
@@ -128,9 +129,16 @@ slash::Status PikaHubServer::Start() {
         result.ToString().c_str());
     return result;
   }
+  last_success_save_offset_time_ = std::chrono::system_clock::now();
+
+  RecoverOffset();
+  if (should_exit_) {
+    delete floyd_;
+    return slash::Status::OK();
+  }
 
   int64_t recovered_key_nums = 0;
-  rocksutil::Status s = binlog_manager_->Recover(&recovered_key_nums);
+  rocksutil::Status s = binlog_manager_->RecoverLruCache(&recovered_key_nums);
   if (!s.ok()) {
     rocksutil::Fatal(options_.info_log, "Recover lru failed %s",
         s.ToString().c_str());
@@ -152,16 +160,44 @@ slash::Status PikaHubServer::Start() {
     return slash::Status::Corruption("Start trysync thread error");
   }
 
-  rocksutil::Info(options_.info_log, "Started");
-  server_mutex_.Lock();
-  server_mutex_.Lock();
-  server_mutex_.Unlock();
+  rocksutil::Info(options_.info_log, "PikaHub Started");
+  slash::Status floyd_status;
+  bool success;
+  while (!should_exit_) {
+    PikaServers servers;
+    std::string value;
+    success = true;
+    {
+    rocksutil::MutexLock l(&pika_mutex_);
+    servers = pika_servers_;
+    }
+    for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
+        iter++) {
+      EncodeOffset(&value,
+          iter->second.rcv_number, iter->second.rcv_offset,
+          iter->second.send_number, iter->second.send_offset);
+      floyd_status = floyd_->Write(std::to_string(iter->first),
+          value);
+      if (!floyd_status.ok()) {
+        rocksutil::Warn(options_.info_log,
+            "Write %d offset to floyd failed %s",
+            floyd_status.ToString().c_str());
+        success = false;
+      }
+    }
+    if (success) {
+      last_success_save_offset_time_ = std::chrono::system_clock::now();
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+  }
+  delete this;
   return slash::Status::OK();
 }
 
 bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
   rocksutil::MutexLock l(&pika_mutex_);
-  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
+  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
+      iter++) {
     if (iter->second.ip == ip && iter->second.rcv_fd == -1 &&
         !(iter->second.should_trysync)) {
       rocksutil::Info(options_.info_log, "Check IP: %s success", ip.c_str());
@@ -266,4 +302,55 @@ bool PikaHubServer::CheckPikaServers() {
     pos = str.find_first_of(',', prev_pos);
   }
   return true;
+}
+
+bool PikaHubServer::RecoverOffset() {
+  while (!should_exit_ && !floyd_->HasLeader()) {
+    rocksutil::Info(options_.info_log, "Wait for floyd leader...");
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  if (should_exit_) {
+    rocksutil::Info(options_.info_log, "RecoverOffset, exit");
+    return false;
+  }
+
+  /*
+   * We call RecoverOffset before starting, so we could modify
+   * pika_servers_ without lock protect
+   */
+  slash::Status s;
+  std::string value;
+  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
+      iter++) {
+    s = floyd_->Read(std::to_string(iter->first), value);
+    if (!s.ok()) {
+      rocksutil::Error(options_.info_log,
+          "RecoverOffset, read floyd error: %s", s.ToString().c_str());
+      return false;
+    }
+    DecodeOffset(value,
+        &(iter->second.rcv_number), &(iter->second.rcv_offset),
+        &(iter->second.send_number), &(iter->second.send_offset));
+  }
+
+  return true;
+}
+
+void PikaHubServer::EncodeOffset(std::string* value,
+    uint64_t rcv_number, uint64_t rcv_offset,
+    uint64_t send_number, uint64_t send_offset) {
+  value->clear();
+  rocksutil::PutFixed64(value, rcv_number);
+  rocksutil::PutFixed64(value, rcv_offset);
+  rocksutil::PutFixed64(value, send_number);
+  rocksutil::PutFixed64(value, send_offset);
+}
+
+void PikaHubServer::DecodeOffset(const std::string& value,
+    uint64_t* rcv_number, uint64_t* rcv_offset,
+    uint64_t* send_number, uint64_t* send_offset) {
+  *rcv_number = rocksutil::DecodeFixed64(value.data());
+  *rcv_offset = rocksutil::DecodeFixed64(value.data() + 8);
+  *send_number = rocksutil::DecodeFixed64(value.data() + 16);
+  *send_offset = rocksutil::DecodeFixed64(value.data() + 24);
 }

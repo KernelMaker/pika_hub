@@ -30,8 +30,9 @@ bool PikaHubTrysync::Send(pink::PinkCli* cli,
 
   slash::Status s = cli->Send(&wbuf_str);
   if (!s.ok()) {
-    Error(info_log_, "Connect master %d,%s:%d, Send, error: %s",
+    Error(info_log_, "Connect master %d,%s:%d(%llu %llu), Send, error: %s",
       iter->first, iter->second.ip.c_str(), iter->second.port,
+      iter->second.rcv_number, iter->second.rcv_offset,
       s.ToString().c_str());
     return false;
   }
@@ -46,8 +47,9 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
   pink::RedisCmdArgsType argv;
   s = cli->Recv(&argv);
   if (!s.ok()) {
-    Error(info_log_, "Connect master %d,%s:%d, Recv, error: %s",
+    Error(info_log_, "Connect master %d,%s:%d(%llu %llu), Recv, error: %s",
       iter->first, iter->second.ip.c_str(), iter->second.port,
+      iter->second.rcv_number, iter->second.rcv_offset,
       strerror(errno));
     return false;
   }
@@ -55,8 +57,10 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
   reply = slash::StringToLower(argv[0]);
 
   if (reply != "ok") {
-    Error(info_log_, "Connect master %d,%s:%d, Recv, logic error: %s",
+    Error(info_log_,
+      "Connect master %d,%s:%d(%llu %llu), Recv, logic error: %s",
       iter->first, iter->second.ip.c_str(), iter->second.port,
+      iter->second.rcv_number, iter->second.rcv_offset,
       reply.c_str());
     return false;
   }
@@ -90,14 +94,16 @@ void PikaHubTrysync::Trysync(const PikaServers::
     cli->set_send_timeout(3000);
     cli->set_recv_timeout(3000);
     if (Send(cli, iter) && Recv(cli, iter)) {
-      Info(info_log_, "Trysync %d,%s:%d success", iter->first,
-          iter->second.ip.c_str(), iter->second.port);
+      Info(info_log_, "Trysync %d,%s:%d(%llu %llu) success", iter->first,
+          iter->second.ip.c_str(), iter->second.port,
+          iter->second.rcv_number, iter->second.rcv_offset);
     }
     cli->Close();
     delete cli;
   } else {
-    Error(info_log_, "Trysync connect %d,%s:%d failed", iter->first,
-          iter->second.ip.c_str(), iter->second.port);
+    Error(info_log_, "Trysync connect %d,%s:%d(%llu %llu) failed", iter->first,
+          iter->second.ip.c_str(), iter->second.port,
+          iter->second.rcv_number, iter->second.rcv_offset);
   }
 }
 

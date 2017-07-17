@@ -8,6 +8,7 @@
 
 #include <string>
 #include <memory>
+#include <chrono>
 
 #include "src/pika_hub_options.h"
 #include "src/pika_hub_common.h"
@@ -18,6 +19,7 @@
 #include "src/pika_hub_trysync.h"
 #include "floyd/include/floyd.h"
 #include "pink/include/server_thread.h"
+#include "rocksutil/coding.h"
 
 class PikaHubServer;
 
@@ -87,6 +89,10 @@ class PikaHubServer {
     return binlog_manager_;
   }
 
+  std::chrono::system_clock::time_point last_success_save_offset_time() {
+    return last_success_save_offset_time_;
+  }
+
   std::shared_ptr<rocksutil::Logger> GetLogger() {
     return options_.info_log;
   }
@@ -108,10 +114,6 @@ class PikaHubServer {
     statistic_data_.last_time_us = cur_time_us;
   }
 
-  void Unlock() {
-    server_mutex_.Unlock();
-  }
-
   void DumpOptions() const {
     options_.Dump(options_.info_log.get());
   }
@@ -121,6 +123,9 @@ class PikaHubServer {
   void UpdateRcvOffset(int32_t server_id,
       int32_t number, int64_t offset);
   void GetBinlogWriterOffset(uint64_t* number, uint64_t* offset);
+  void Exit() {
+    should_exit_ = true;
+  }
 
  private:
   rocksutil::Env* env_;
@@ -141,6 +146,8 @@ class PikaHubServer {
     std::atomic<uint64_t> last_time_us;
   };
   StatisticData statistic_data_;
+  std::atomic<bool> should_exit_;
+  std::chrono::system_clock::time_point last_success_save_offset_time_;
 
   floyd::Floyd* floyd_;
 
@@ -156,11 +163,16 @@ class PikaHubServer {
   PikaHubTrysync* trysync_thread_;
   BinlogWriter* binlog_writer_;
   bool CheckPikaServers();
+  bool RecoverOffset();
+  static void EncodeOffset(std::string* value,
+      uint64_t rcv_number, uint64_t rcv_offset,
+      uint64_t send_number, uint64_t send_offset);
+  static void DecodeOffset(const std::string& value,
+      uint64_t* rcv_number, uint64_t* rcv_offset,
+      uint64_t* send_number, uint64_t* send_offset);
   PikaServers pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex pika_mutex_;
-
-  rocksutil::port::Mutex server_mutex_;
 };
 
 #endif  // SRC_PIKA_HUB_SERVER_H_

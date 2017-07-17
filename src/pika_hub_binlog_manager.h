@@ -45,7 +45,7 @@ class BinlogManager {
   size_t GetLruMemUsage() {
     return lru_cache_->GetUsage();
   }
-  rocksutil::Status Recover(int64_t* nums);
+  rocksutil::Status RecoverLruCache(int64_t* nums);
 
  private:
   std::string log_path_;

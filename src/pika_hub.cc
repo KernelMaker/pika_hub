@@ -36,7 +36,7 @@ static void PikaHubConfInit(const std::string& path) {
 
 void IntSigHandle(int sig) {
   printf("Catch Signal %d, cleanup...\n", sig);
-  g_pika_hub_server->Unlock();
+  g_pika_hub_server->Exit();
 }
 
 void SignalSetup() {
@@ -105,7 +105,6 @@ int main(int argc, char** argv) {
   }
 
   printf("Will Stop Server...\n");
-  delete g_pika_hub_server;
 
   return 0;
 }

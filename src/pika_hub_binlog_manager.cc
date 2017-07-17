@@ -48,7 +48,7 @@ void BinlogManager::GetWriterOffset(uint64_t* number,
   *offset = offset_;
 }
 
-rocksutil::Status BinlogManager::Recover(int64_t* nums) {
+rocksutil::Status BinlogManager::RecoverLruCache(int64_t* nums) {
   BinlogReader* reader = AddReader(smallest_, 0, true);
   if (reader == nullptr) {
     return rocksutil::Status::NotFound();

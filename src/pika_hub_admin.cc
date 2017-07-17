@@ -6,6 +6,7 @@
 
 #include <sstream>
 #include <string>
+#include <ctime>
 
 #include "src/pika_hub_admin.h"
 #include "src/pika_hub_server.h"
@@ -44,7 +45,7 @@ void InfoCmd::Do() {
   std::stringstream tmp_stream;
 
   tmp_stream << "# Server\r\n";
-  char version[30];
+  char version[32];
   snprintf(version, sizeof(version), "%d.%d.%d", PIKA_HUB_MAJOR,
       PIKA_HUB_MINOR, PIKA_HUB_PATCH);
   tmp_stream << "version: " << version << "\r\n";
@@ -68,8 +69,12 @@ void InfoCmd::Do() {
   uint64_t number = 0;
   uint64_t offset = 0;
   g_pika_hub_server->GetBinlogWriterOffset(&number, &offset);
-  tmp_stream << "binlog_writer_offset: " << number <<
+  tmp_stream << "binlog_writer_offset:" << number <<
     ":" << offset << "\r\n";
+  char buf[64];
+  std::time_t tt = std::chrono::system_clock::to_time_t(
+        g_pika_hub_server->last_success_save_offset_time());
+  tmp_stream << "last_success_save_offset_time:" << ctime_r(&tt, buf);
   tmp_stream << g_pika_hub_server->DumpPikaServers() << "\r\n";
 
   info.append(tmp_stream.str());
