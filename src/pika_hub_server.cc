@@ -259,7 +259,7 @@ bool PikaHubServer::CheckPikaServers() {
     status.passwd = token_in != NULL ?
       std::string(token_in, strlen(token_in)) : "";
 
-    pika_servers_.insert(std::map<int32_t, PikaStatus>::
+    pika_servers_.insert(PikaServers::
                       value_type(server_id, status));
 
     prev_pos = str.find_first_not_of(',', pos);

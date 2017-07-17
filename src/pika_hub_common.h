@@ -7,6 +7,7 @@
 #define SRC_PIKA_HUB_COMMON_H_
 
 #include <string>
+#include <map>
 
 struct PikaStatus {
   bool should_trysync = true;
@@ -23,6 +24,8 @@ struct PikaStatus {
   std::string ip;
   std::string passwd;
 };
+
+typedef std::map<int32_t, PikaStatus> PikaServers;
 
 struct CacheEntity {
   CacheEntity(int32_t _server_id,

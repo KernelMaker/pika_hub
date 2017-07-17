@@ -8,7 +8,6 @@
 
 #include <memory>
 #include <string>
-#include <map>
 
 #include "src/pika_hub_binlog_reader.h"
 #include "src/pika_hub_common.h"
@@ -21,7 +20,7 @@ class BinlogSender : public pink::Thread {
       const int32_t port,
       std::shared_ptr<rocksutil::Logger> info_log,
     BinlogReader* reader,
-    std::map<int32_t, PikaStatus>* pika_servers,
+    PikaServers* pika_servers,
     rocksutil::port::Mutex* pika_mutex,
     BinlogManager* manager)
   : server_id_(server_id),
@@ -47,7 +46,7 @@ class BinlogSender : public pink::Thread {
   int32_t port_;
   std::shared_ptr<rocksutil::Logger> info_log_;
   BinlogReader* reader_;
-  std::map<int32_t, PikaStatus>* pika_servers_;
+  PikaServers* pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex* pika_mutex_;
   BinlogManager* manager_;

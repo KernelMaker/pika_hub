@@ -12,7 +12,7 @@
 #include "slash/include/slash_status.h"
 
 bool PikaHubTrysync::Send(pink::PinkCli* cli,
-    const std::map<int32_t, PikaStatus>::iterator& iter) {
+    const PikaServers::iterator& iter) {
   pink::RedisCmdArgsType argv;
   std::string wbuf_str;
 
@@ -39,7 +39,7 @@ bool PikaHubTrysync::Send(pink::PinkCli* cli,
 }
 
 bool PikaHubTrysync::Recv(pink::PinkCli* cli,
-    const std::map<int32_t, PikaStatus>::iterator& iter) {
+    const PikaServers::iterator& iter) {
   slash::Status s;
   std::string reply;
 
@@ -81,7 +81,7 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
   return true;
 }
 
-void PikaHubTrysync::Trysync(const std::map<int32_t, PikaStatus>::
+void PikaHubTrysync::Trysync(const PikaServers::
     iterator& iter) {
   pink::PinkCli* cli = pink::NewRedisCli();
   cli->set_connect_timeout(1500);

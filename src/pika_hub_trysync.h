@@ -7,7 +7,6 @@
 #define SRC_PIKA_HUB_TRYSYNC_H_
 
 #include <string>
-#include <map>
 #include <memory>
 
 #include "src/pika_hub_common.h"
@@ -23,7 +22,7 @@ class PikaHubTrysync : public pink::Thread {
   PikaHubTrysync(std::shared_ptr<rocksutil::Logger> info_log,
     std::string local_ip,
     int local_port,
-    std::map<int32_t, PikaStatus>* pika_servers,
+    PikaServers* pika_servers,
     rocksutil::port::Mutex* pika_mutex,
     BinlogManager* manager)
   : info_log_(info_log),
@@ -49,16 +48,16 @@ class PikaHubTrysync : public pink::Thread {
   std::shared_ptr<rocksutil::Logger> info_log_;
   std::string local_ip_;
   int local_port_;
-  std::map<int32_t, PikaStatus>* pika_servers_;
+  PikaServers* pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex* pika_mutex_;
   BinlogManager* manager_;
 
-  void Trysync(const std::map<int32_t, PikaStatus>::iterator& iter);
+  void Trysync(const PikaServers::iterator& iter);
   bool Send(pink::PinkCli* cli,
-        const std::map<int32_t, PikaStatus>::iterator& iter);
+        const PikaServers::iterator& iter);
   bool Recv(pink::PinkCli* cli,
-        const std::map<int32_t, PikaStatus>::iterator& iter);
+        const PikaServers::iterator& iter);
   virtual void* ThreadMain() override;
 };
 

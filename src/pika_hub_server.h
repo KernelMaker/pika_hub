@@ -6,7 +6,6 @@
 #ifndef SRC_PIKA_HUB_SERVER_H_
 #define SRC_PIKA_HUB_SERVER_H_
 
-#include <map>
 #include <string>
 #include <memory>
 
@@ -157,7 +156,7 @@ class PikaHubServer {
   PikaHubTrysync* trysync_thread_;
   BinlogWriter* binlog_writer_;
   bool CheckPikaServers();
-  std::map<int32_t, PikaStatus> pika_servers_;
+  PikaServers pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex pika_mutex_;
 
