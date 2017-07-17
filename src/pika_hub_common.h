@@ -8,9 +8,6 @@
 
 #include <string>
 
-struct ConnPrivateData {
-};
-
 struct PikaStatus {
   bool should_trysync = true;
   bool should_delete = false;
@@ -42,5 +39,7 @@ const uint8_t kDeleteOPCode = 2;
 const char kBinlogPrefix[] = "binlog_";
 const int32_t kMaxBinlogFileSize = 100 * 1024 * 1024;
 const char kBinlogMagic[] = "__PIKA_X#$SKGI";
+
+const int32_t kMaxRecoverNums = 100;
 
 #endif  // SRC_PIKA_HUB_COMMON_H_

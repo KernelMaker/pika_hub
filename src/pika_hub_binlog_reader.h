@@ -17,10 +17,12 @@ class BinlogReader {
      const std::string& log_path,
      uint64_t number,
      rocksutil::Env* env,
-     BinlogManager* manager)
+     BinlogManager* manager,
+     bool exit_at_end)
   : reader_(reader), log_path_(log_path),
   number_(number),
   env_(env), manager_(manager),
+  exit_at_end_(exit_at_end),
   should_exit_(false) {
     reporter_.status = &status_;
   }
@@ -57,6 +59,7 @@ class BinlogReader {
   uint64_t number_;
   rocksutil::Env* env_;
   BinlogManager* manager_;
+  bool exit_at_end_;
   bool should_exit_;
   rocksutil::Status status_;
   rocksutil::log::Reader::LogReporter reporter_;
@@ -64,6 +67,7 @@ class BinlogReader {
 
 extern BinlogReader* CreateBinlogReader(const std::string& log_path,
     rocksutil::Env* env, uint64_t number, uint64_t offset,
-    BinlogManager* manager);
+    BinlogManager* manager,
+    bool ret_at_end);
 
 #endif  // SRC_PIKA_HUB_BINLOG_READER_H_

@@ -36,10 +36,10 @@ class BinlogWriter {
   uint64_t number() {
     return number_;
   }
+  static void CacheEntityDeleter(const rocksutil::Slice& key, void* value);
 
  private:
   void RollFile();
-  static void CacheEntityDeleter(const rocksutil::Slice& key, void* value);
   static std::string EncodeBinlogContent(uint8_t op,
       const std::string& key, const std::string& value,
       int32_t server_id, int32_t exec_time);

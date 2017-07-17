@@ -17,14 +17,16 @@ class BinlogManager {
  public:
   BinlogManager(const std::string& log_path,
       rocksutil::Env* env,
-      uint64_t number)
+      uint64_t number, uint64_t smallest)
     : log_path_(log_path), env_(env),
     number_(number), offset_(0),
+    smallest_(smallest),
     cv_(&mutex_),
-    lru_cache_(rocksutil::NewLRUCache(1000000)) {}
+    lru_cache_(rocksutil::NewLRUCache(1000000000)) {}
 
   BinlogWriter* AddWriter();
-  BinlogReader* AddReader(uint64_t number, uint64_t offset);
+  BinlogReader* AddReader(uint64_t number, uint64_t offset,
+      bool ret_at_end = false);
 
   rocksutil::port::Mutex* mutex() {
     return &mutex_;
@@ -40,12 +42,17 @@ class BinlogManager {
 
   void UpdateWriterOffset(uint64_t number, uint64_t offset);
   void GetWriterOffset(uint64_t* number, uint64_t* offset);
+  size_t GetLruMemUsage() {
+    return lru_cache_->GetUsage();
+  }
+  rocksutil::Status Recover(int64_t* nums);
 
  private:
   std::string log_path_;
   rocksutil::Env* env_;
   uint64_t number_;
   uint64_t offset_;
+  uint64_t smallest_;
   rocksutil::port::Mutex mutex_;
   rocksutil::port::CondVar cv_;
   std::shared_ptr<rocksutil::Cache> lru_cache_;

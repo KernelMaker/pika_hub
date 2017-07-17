@@ -129,6 +129,16 @@ slash::Status PikaHubServer::Start() {
     return result;
   }
 
+  int64_t recovered_key_nums = 0;
+  rocksutil::Status s = binlog_manager_->Recover(&recovered_key_nums);
+  if (!s.ok()) {
+    rocksutil::Fatal(options_.info_log, "Recover lru failed %s",
+        s.ToString().c_str());
+  }
+  rocksutil::Info(options_.info_log, "Recover %lld records into lru cache",
+      recovered_key_nums);
+
+
   int ret = server_thread_->StartThread();
   if (ret != 0) {
     return slash::Status::Corruption("Start server error");
@@ -208,6 +218,13 @@ void PikaHubServer::UpdateRcvOffset(int32_t server_id,
     iter->second.rcv_number = number;
     iter->second.rcv_offset = offset;
   }
+}
+
+void PikaHubServer::GetBinlogWriterOffset(uint64_t* number,
+    uint64_t* offset) {
+  rocksutil::MutexLock l(&pika_mutex_);
+  *number = binlog_writer_->number();
+  *offset = binlog_writer_->GetOffsetInFile();
 }
 
 bool PikaHubServer::CheckPikaServers() {

@@ -45,7 +45,7 @@ void InfoCmd::Do() {
 
   tmp_stream << "# Server\r\n";
   char version[30];
-  sprintf(version, "%d.%d.%d", PIKA_HUB_MAJOR,
+  snprintf(version, sizeof(version), "%d.%d.%d", PIKA_HUB_MAJOR,
       PIKA_HUB_MINOR, PIKA_HUB_PATCH);
   tmp_stream << "version: " << version << "\r\n";
   tmp_stream << pika_hub_build_git_sha << "\r\n";
@@ -58,8 +58,18 @@ void InfoCmd::Do() {
     g_pika_hub_server->last_qps() << "\r\n";
   tmp_stream << "total_commands_processed:" <<
     g_pika_hub_server->query_num() << "\r\n";
+  tmp_stream << "lru_cache_memory_usage:" <<
+    g_pika_hub_server->binlog_manager()->GetLruMemUsage() << "\r\n";
+  tmp_stream << "lru_cache_memory_usage_human:" <<
+    g_pika_hub_server->binlog_manager()->GetLruMemUsage() / 1024
+    / 1024 << "MB\r\n";
 
   tmp_stream << "# Pika-Servers\r\n";
+  uint64_t number = 0;
+  uint64_t offset = 0;
+  g_pika_hub_server->GetBinlogWriterOffset(&number, &offset);
+  tmp_stream << "binlog_writer_offset: " << number <<
+    ":" << offset << "\r\n";
   tmp_stream << g_pika_hub_server->DumpPikaServers() << "\r\n";
 
   info.append(tmp_stream.str());

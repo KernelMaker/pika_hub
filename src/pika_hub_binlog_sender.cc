@@ -100,6 +100,7 @@ void* BinlogSender::ThreadMain() {
             manager_->lru_cache()->Value(handle))->exec_time;
         if (exec_time < _exec_time) {
           UpdateSendOffset();
+          manager_->lru_cache()->Release(handle);
           continue;
         }
       } else {
@@ -108,6 +109,7 @@ void* BinlogSender::ThreadMain() {
         UpdateSendOffset();
         continue;
       }
+      manager_->lru_cache()->Release(handle);
 
       switch (op) {
         case kSetOPCode:

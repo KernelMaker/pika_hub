@@ -121,6 +121,7 @@ class PikaHubServer {
   std::string DumpPikaServers();
   void UpdateRcvOffset(int32_t server_id,
       int32_t number, int64_t offset);
+  void GetBinlogWriterOffset(uint64_t* number, uint64_t* offset);
 
  private:
   rocksutil::Env* env_;
