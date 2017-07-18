@@ -88,6 +88,8 @@ rocksutil::Status BinlogManager::RecoverLruCache(int64_t* nums) {
     (*nums)++;
   }
   delete reader;
+
+  return rocksutil::Status::OK();
 }
 
 BinlogManager* CreateBinlogManager(const std::string& log_path,

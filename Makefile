@@ -58,17 +58,17 @@ SLASH = $(SLASH_PATH)/slash/lib/libslash$(DEBUG_SUFFIX).a
 ifndef PINK_PATH
 PINK_PATH = $(realpath $(THIRD_PATH)/pink)
 endif
-PINK = $(PINK_PATH)/pink/lib/libpink.a
+PINK = $(PINK_PATH)/pink/lib/libpink$(DEBUG_SUFFIX).a
 
 ifndef ROCKSDB_PATH
 ROCKSDB_PATH = $(realpath $(THIRD_PATH)/rocksdb)
 endif
-ROCKSDB = $(ROCKSDB_PATH)/librocksdb.a
+ROCKSDB = $(ROCKSDB_PATH)/librocksdb$(DEBUG_SUFFIX).a
 
 ifndef FLOYD_PATH
 FLOYD_PATH = $(realpath $(THIRD_PATH)/floyd)
 endif
-FLOYD = $(FLOYD_PATH)/floyd/lib/libfloyd.a
+FLOYD = $(FLOYD_PATH)/floyd/lib/libfloyd$(DEBUG_SUFFIX).a
 
 ifndef ROCKSUTIL_PATH
 ROCKSUTIL_PATH = $(realpath $(THIRD_PATH)/rocksutil)
@@ -92,8 +92,8 @@ LIB_PATH = -L./ \
 
 LDFLAGS += $(LIB_PATH) \
 					 -lprotobuf \
-			 		 -lfloyd \
-			 		 -lpink \
+			 		 -lfloyd$(DEBUG_SUFFIX) \
+			 		 -lpink$(DEBUG_SUFFIX) \
 			 		 -lslash$(DEBUG_SUFFIX) \
 			 		 -lz \
 			 		 -lbz2 \
@@ -231,10 +231,10 @@ $(BINARY): $(FLOYD) $(PINK) $(SLASH) $(ROCKSUTIL) $(LIBOBJECTS)
 	
 
 $(FLOYD):
-	make -C $(FLOYD_PATH)/floyd/ __PERF=$(DEBUG_LEVEL) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH) ROCKSDB_PATH=$(ROCKSDB_PATH)
+	make -C $(FLOYD_PATH)/floyd/ DEBUG_LEVEL=$(DEBUG_LEVEL) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH) ROCKSDB_PATH=$(ROCKSDB_PATH)
 
 $(PINK):
-	make -C $(PINK_PATH)/pink/ __PERF=$(DEBUG_LEVEL)  SLASH_PATH=$(SLASH_PATH)
+	make -C $(PINK_PATH)/pink/ DEBUG_LEVEL=$(DEBUG_LEVEL)  SLASH_PATH=$(SLASH_PATH)
 
 $(SLASH):
 	make -C $(SLASH_PATH)/slash/ DEBUG_LEVEL=$(DEBUG_LEVEL)
