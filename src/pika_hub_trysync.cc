@@ -99,14 +99,13 @@ void PikaHubTrysync::Trysync(const PikaServers::
           iter->second.ip.c_str(), iter->second.port,
           iter->second.rcv_number, iter->second.rcv_offset);
     }
-    cli->Close();
-    delete cli;
   } else {
     Error(info_log_, "Trysync master %d,%s:%d(%llu %llu) connect failed",
           iter->first,
           iter->second.ip.c_str(), iter->second.port,
           iter->second.rcv_number, iter->second.rcv_offset);
   }
+  delete cli;
 }
 
 void* PikaHubTrysync::ThreadMain() {

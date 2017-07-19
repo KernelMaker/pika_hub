@@ -53,6 +53,7 @@ void* BinlogSender::ThreadMain() {
       } else {
         Error(info_log_, "BinlogSender Connect %d,%s:%d failed", server_id_,
             ip_.c_str(), port_);
+        delete cli;
         cli = nullptr;
       }
       std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -72,7 +73,8 @@ void* BinlogSender::ThreadMain() {
           iter->second.send_fd = -1;
         }
         }
-        cli->Close();
+        delete cli;
+        cli = nullptr;
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         continue;
       } else {
@@ -133,5 +135,6 @@ void* BinlogSender::ThreadMain() {
           read_status.ToString().c_str());
     }
   }
+  delete cli;
   return nullptr;
 }
