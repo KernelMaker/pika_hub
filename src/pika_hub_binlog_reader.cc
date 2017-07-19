@@ -32,7 +32,7 @@ rocksutil::Status BinlogReader::ReadRecord(uint8_t* op,
   uint64_t reader_offset = 0;
   std::string scratch;
   rocksutil::Slice record;
-  while (true) {
+  while (!should_exit_) {
     ret = reader_->ReadRecord(&record, &scratch);
     if (ret) {
       DecodeBinlogContent(record, op, key, value, server_id, exec_time);
@@ -76,6 +76,7 @@ rocksutil::Status BinlogReader::ReadRecord(uint8_t* op,
       }
     }
   }
+  return rocksutil::Status::Corruption("Exit");
 }
 
 rocksutil::log::Reader* CreateReader(rocksutil::Env* env,
