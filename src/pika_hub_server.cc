@@ -7,6 +7,10 @@
 #include <cstring>
 #include <map>
 
+//  #include <thread>
+//  #include <iostream>
+//  #include <chrono>
+
 #include "src/pika_hub_server.h"
 #include "src/pika_hub_command.h"
 #include "slash/include/slash_string.h"
@@ -90,7 +94,7 @@ PikaHubServer::PikaHubServer(const Options& options)
                             server_handler_);
   inner_conn_factory_ = new PikaHubInnerClientConnFactory();
   inner_server_handler_ = new PikaHubInnerServerHandler(this);
-  inner_server_thread_ = pink::NewDispatchThread(options_.port+1000, 2,
+  inner_server_thread_ = pink::NewDispatchThread(options_.port+1000, 20,
                   inner_conn_factory_, 1000, 1000, inner_server_handler_);
   inner_server_thread_->set_keepalive_timeout(0);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env);
@@ -117,7 +121,35 @@ PikaHubServer::~PikaHubServer() {
   delete floyd_;
 }
 
+//  std::atomic<int32_t> count;
+//  void Func(BinlogWriter* writer, int i) {
+//    char key[32];
+//    for (int j = 0; j < 100000; j++) {
+//      sprintf(key, "key_%d_%d", i, j);
+//      writer->Append(0, key, "value", i, 1234);
+//      count++;
+//    }
+//  }
+
 slash::Status PikaHubServer::Start() {
+//  count = 0;
+//  auto start = std::chrono::steady_clock::now();
+//  std::thread* threads[10];
+//  for (int i = 0; i < 10; i++) {
+//    threads[i] = new std::thread(Func, binlog_writer_, i);
+//  }
+//  for (int i = 0; i < 10; i++) {
+//    threads[i]->join();
+//  }
+//  auto end = std::chrono::steady_clock::now();
+//  std::cout << "used " << (end-start).count() << std::endl;
+//  std::cout << "Count " << count << std::endl;
+//  for (int i = 0; i < 10; i++) {
+//    delete threads[i];
+//  }
+//  return slash::Status::OK();
+
+
   if (!CheckPikaServers()) {
     rocksutil::Fatal(options_.info_log, "Invalid pika-servers");
     return slash::Status::Corruption("Invalid pika-server");
@@ -208,6 +240,7 @@ bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
   }
   rocksutil::Warn(options_.info_log, "Check IP: %s failed", ip.c_str());
   return false;
+  return true;
 }
 
 void PikaHubServer::ResetRcvFd(int fd, const std::string& ip_port) {

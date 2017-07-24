@@ -7,9 +7,12 @@
 #define SRC_PIKA_HUB_BINLOG_READER_H_
 
 #include <string>
+#include <vector>
 
+#include "src/pika_hub_common.h"
 #include "rocksutil/log_reader.h"
 #include "rocksutil/env.h"
+
 class BinlogManager;
 class BinlogReader {
  public:
@@ -31,9 +34,7 @@ class BinlogReader {
     delete reader_;
   }
 
-  rocksutil::Status ReadRecord(uint8_t* op,
-    std::string* key, std::string* value,
-    int32_t* server_id, int32_t* exec_time);
+  rocksutil::Status ReadRecord(std::vector<BinlogFields>* result);
 
   bool IsEOF() {
     return reader_->IsEOF();
@@ -52,8 +53,7 @@ class BinlogReader {
  private:
   bool TryToRollFile();
   static void DecodeBinlogContent(const rocksutil::Slice& content,
-      uint8_t* op, std::string* key, std::string* value,
-      int32_t* server_id, int32_t* exec_time);
+      std::vector<BinlogFields>* result);
   rocksutil::log::Reader* reader_;
   std::string log_path_;
   uint64_t number_;

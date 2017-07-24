@@ -5,6 +5,7 @@
 
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "src/pika_hub_binlog_sender.h"
 #include "src/pika_hub_common.h"
@@ -25,15 +26,12 @@ void BinlogSender::UpdateSendOffset() {
 }
 void* BinlogSender::ThreadMain() {
   rocksutil::Status read_status;
-  uint8_t op;
-  std::string key;
-  std::string value;
-  int32_t server_id;
-  int32_t exec_time;
   pink::PinkCli* cli = nullptr;
   pink::RedisCmdArgsType args;
   std::string str_cmd;
+  std::string tmp_str;
   slash::Status s;
+  std::vector<BinlogFields> result;
   while (!should_stop()) {
     if (cli == nullptr) {
       cli = pink::NewRedisCli();
@@ -60,8 +58,7 @@ void* BinlogSender::ThreadMain() {
       continue;
     }
 
-    if (!args.empty()) {
-      pink::SerializeRedisCommand(args, &str_cmd);
+    if (str_cmd.size() != 0) {
       s = cli->Send(&str_cmd);
       if (!s.ok()) {
         Error(info_log_, "BinlogSender Send %d,%s:%d failed", server_id_,
@@ -84,47 +81,55 @@ void* BinlogSender::ThreadMain() {
       str_cmd.clear();
     }
 
-    read_status = reader_->ReadRecord(&op, &key, &value,
-        &server_id, &exec_time);
+//    read_status = reader_->ReadRecord(&op, &key, &value,
+//        &server_id, &exec_time);
+    read_status = reader_->ReadRecord(&result);
     if (read_status.ok()) {
 //      Info(info_log_,
 //          "op: %d, key: %s, value: %s, server_id: %d, exec_time: %d",
 //          op, key.c_str(), value.c_str(), server_id, exec_time);
-
-      if (server_id_ == server_id) {
-        UpdateSendOffset();
-        continue;
-      }
-
-      rocksutil::Cache::Handle* handle = manager_->lru_cache()->Lookup(key);
-      if (handle) {
-        int32_t _exec_time = static_cast<CacheEntity*>(
-            manager_->lru_cache()->Value(handle))->exec_time;
-        if (exec_time < _exec_time) {
+      for (auto iter = result.begin(); iter != result.end();
+            iter++) {
+        if (server_id_ == iter->server_id) {
           UpdateSendOffset();
-          manager_->lru_cache()->Release(handle);
           continue;
         }
-      } else {
-        Error(info_log_, "BinlogSender check LRU: %s is not in cache",
-            key.c_str());
-        UpdateSendOffset();
-        continue;
-      }
-      manager_->lru_cache()->Release(handle);
 
-      switch (op) {
-        case kSetOPCode:
-          args.push_back("set");
-          break;
-      }
+        rocksutil::Cache::Handle* handle = manager_->lru_cache()->Lookup(
+            iter->key);
+        if (handle) {
+          int32_t _exec_time = static_cast<CacheEntity*>(
+              manager_->lru_cache()->Value(handle))->exec_time;
+          if (iter->exec_time < _exec_time) {
+            UpdateSendOffset();
+            manager_->lru_cache()->Release(handle);
+            continue;
+          }
+        } else {
+          Error(info_log_, "BinlogSender check LRU: %s is not in cache",
+              iter->key.c_str());
+          UpdateSendOffset();
+          continue;
+        }
+        manager_->lru_cache()->Release(handle);
 
-      args.push_back(key);
+        switch (iter->op) {
+          case kSetOPCode:
+            args.push_back("set");
+            break;
+        }
 
-      switch (op) {
-        case kSetOPCode:
-          args.push_back(value);
-          break;
+        args.push_back(iter->key);
+
+        switch (iter->op) {
+          case kSetOPCode:
+            args.push_back(iter->value);
+            break;
+        }
+
+        pink::SerializeRedisCommand(args, &tmp_str);
+        str_cmd.append(tmp_str);
+        args.clear();
       }
 
     } else if (read_status.IsCorruption() &&

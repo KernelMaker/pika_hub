@@ -54,15 +54,10 @@ rocksutil::Status BinlogManager::RecoverLruCache(int64_t* nums) {
     return rocksutil::Status::NotFound();
   }
   *nums = 0;
-  uint8_t op;
-  std::string key;
-  std::string value;
-  int32_t server_id;
-  int32_t exec_time;
   rocksutil::Status s;
+  std::vector<BinlogFields> result;
   while (true) {
-    s = reader->ReadRecord(&op, &key, &value, &server_id,
-        &exec_time);
+    s = reader->ReadRecord(&result);
     if (s.IsCorruption() && s.ToString() == "Corruption: Exit") {
       return rocksutil::Status::OK();
     } else if (!s.ok()) {
@@ -73,19 +68,23 @@ rocksutil::Status BinlogManager::RecoverLruCache(int64_t* nums) {
      * Recover is called before server start, so we could check & insert
      * lru cache without lock here;
      */
-    rocksutil::Cache::Handle* handle = lru_cache_->Lookup(key);
-    if (handle) {
-      int32_t _exec_time = static_cast<CacheEntity*>(
-          lru_cache_->Value(handle))->exec_time;
-      if (exec_time <= _exec_time) {
+    for (auto iter = result.begin(); iter != result.end(); iter++) {
+      rocksutil::Cache::Handle* handle = lru_cache_->Lookup(iter->key);
+      if (handle) {
+        int32_t _exec_time = static_cast<CacheEntity*>(
+            lru_cache_->Value(handle))->exec_time;
+        if (iter->exec_time <= _exec_time) {
+          lru_cache_->Release(handle);
+          continue;
+        }
         lru_cache_->Release(handle);
-        continue;
       }
-      lru_cache_->Release(handle);
+      CacheEntity* entity = new CacheEntity(iter->server_id,
+          iter->exec_time);
+      lru_cache_->Insert(iter->key, entity, 1,
+          &BinlogWriter::CacheEntityDeleter);
+      (*nums)++;
     }
-    CacheEntity* entity = new CacheEntity(server_id, exec_time);
-    lru_cache_->Insert(key, entity, 1, &BinlogWriter::CacheEntityDeleter);
-    (*nums)++;
   }
   delete reader;
 

@@ -23,9 +23,8 @@ void BinlogReader::StopRead() {
   manager_->cv()->SignalAll();
 }
 
-rocksutil::Status BinlogReader::ReadRecord(uint8_t* op,
-    std::string* key, std::string* value,
-    int32_t* server_id, int32_t* exec_time) {
+rocksutil::Status BinlogReader::ReadRecord(
+    std::vector<BinlogFields>* result) {
   bool ret = true;
   uint64_t writer_number = 0;
   uint64_t writer_offset = 0;
@@ -35,7 +34,7 @@ rocksutil::Status BinlogReader::ReadRecord(uint8_t* op,
   while (!should_exit_) {
     ret = reader_->ReadRecord(&record, &scratch);
     if (ret) {
-      DecodeBinlogContent(record, op, key, value, server_id, exec_time);
+      DecodeBinlogContent(record, result);
       return rocksutil::Status::OK();
     } else {
       if (status_.ok()) {
@@ -114,16 +113,32 @@ bool BinlogReader::TryToRollFile() {
 }
 
 void BinlogReader::DecodeBinlogContent(const rocksutil::Slice& content,
-    uint8_t* op, std::string* key, std::string* value,
-    int32_t* server_id, int32_t* exec_time) {
-  *op = static_cast<uint8_t>(content.data()[0]);
-  *server_id = rocksutil::DecodeFixed32(content.data() + 1);
-  *exec_time = rocksutil::DecodeFixed32(content.data() + 5);
-  int32_t key_size = rocksutil::DecodeFixed32(content.data() + 9);
-  *key = std::string(content.data() + 13, key_size);
-  value->clear();
-  *value = std::string(content.data() + 13 + key_size,
-      content.size() - 13 - key_size);
+    std::vector<BinlogFields>* result) {
+  int32_t pos = 0;
+  int32_t total = content.size();
+
+  uint8_t op = 0;
+  int32_t server_id = 0;
+  int32_t exec_time = 0;
+  int32_t key_size = 0;
+  int32_t value_size = 0;
+
+  result->clear();
+  while (pos + 1 < total) {
+    op = static_cast<uint8_t>(*(content.data() + pos));
+    server_id = rocksutil::DecodeFixed32(content.data() + pos + 1);
+    exec_time = rocksutil::DecodeFixed32(content.data() + pos + 5);
+    key_size = rocksutil::DecodeFixed32(content.data() + pos + 9);
+    value_size = rocksutil::DecodeFixed32(content.data() + pos
+        + 13 + key_size);
+
+    result->push_back({op, server_id, exec_time,
+        std::string(content.data() + pos + 13, key_size),
+        std::string(content.data() + pos + 17 + key_size, value_size)
+        });
+
+    pos += (17 + key_size + value_size);
+  }
 }
 
 BinlogReader* CreateBinlogReader(const std::string& log_path,

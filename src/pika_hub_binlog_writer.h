@@ -22,7 +22,7 @@ class BinlogWriter {
      BinlogManager* manager)
   : writer_(writer), log_path_(log_path),
     number_(number), env_(env),
-    manager_(manager) {}
+    manager_(manager), count_(0) {}
 
   ~BinlogWriter() {
     delete writer_;
@@ -36,12 +36,64 @@ class BinlogWriter {
   uint64_t number() {
     return number_;
   }
+
   static void CacheEntityDeleter(const rocksutil::Slice& key, void* value);
+
+  class Task {
+   public:
+    Task(uint8_t op, const std::string& key,
+        const std::string& value, int32_t server_id,
+        int32_t exec_time) :
+      op_(op), key_(key), server_id_(server_id),
+      exec_time_(exec_time) {
+        EncodeBinlogContent(&rep_, op, key,
+            value, server_id, exec_time);
+    }
+    uint8_t op_;
+    std::string key_;
+    int32_t server_id_;
+    int32_t exec_time_;
+    std::string rep_;
+  };
+
+  struct Executor {
+    Task* task;
+    bool leader;
+    bool done;
+    rocksutil::Status status;
+    Executor* link_older;
+    Executor* link_newer;
+    rocksutil::port::Mutex mutex;
+    rocksutil::port::CondVar cv;
+    explicit Executor(Task* t) :
+      task(t),
+      leader(false),
+      done(false),
+      link_older(nullptr),
+      link_newer(nullptr),
+      cv(&mutex) {}
+  };
+
+  class WriteThread {
+   public:
+    WriteThread() :
+      newest_executor_(nullptr) {}
+    void JoinTaskGroup(Executor* e);
+    void EnterAsTaskGroupLeader(Executor** newest_executor);
+    void ExitAsTaskGroupLeader(Executor* leader, Executor* last_executor,
+          const rocksutil::Status& result);
+
+
+   private:
+    void LinkOne(Executor* e, bool* linked_as_leader);
+    std::atomic<Executor*> newest_executor_;
+  };
 
  private:
   void RollFile();
-  static std::string EncodeBinlogContent(uint8_t op,
-      const std::string& key, const std::string& value,
+  rocksutil::Status Append(Task* task);
+  static void EncodeBinlogContent(std::string* result,
+      uint8_t op, const std::string& key, const std::string& value,
       int32_t server_id, int32_t exec_time);
 
   rocksutil::log::Writer* writer_;
@@ -49,6 +101,8 @@ class BinlogWriter {
   uint64_t number_;
   rocksutil::Env* env_;
   BinlogManager* manager_;
+  WriteThread write_thread_;
+  std::atomic<int> count_;
 };
 
 extern BinlogWriter* CreateBinlogWriter(const std::string& log_path,

@@ -27,6 +27,14 @@ struct PikaStatus {
 
 typedef std::map<int32_t, PikaStatus> PikaServers;
 
+struct BinlogFields {
+  uint8_t op;
+  int32_t server_id;
+  int32_t exec_time;
+  std::string key;
+  std::string value;
+};
+
 struct CacheEntity {
   CacheEntity(int32_t _server_id,
       int32_t _exec_time)

@@ -35,7 +35,12 @@ class PikaHubTrysync : public pink::Thread {
   virtual ~PikaHubTrysync() {
     set_should_stop();
     {
-    rocksutil::MutexLock l(pika_mutex_);
+     /*
+      * I commented the lock, because it may cause deadlock when BinlogSender
+      * is using pika_mutex_. It looks like that there is no need to hold
+      * the lock here. I will solve it later...
+      */
+//    rocksutil::MutexLock l(pika_mutex_);
     for (auto iter = pika_servers_->begin(); iter != pika_servers_->end();
         iter++) {
       delete static_cast<BinlogSender*>(iter->second.sender);
