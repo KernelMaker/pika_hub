@@ -126,6 +126,7 @@ class PikaHubServer {
   void Exit() {
     should_exit_ = true;
   }
+  void DisconnectPika(int32_t server_id, bool reconnect = true);
 
  private:
   rocksutil::Env* env_;

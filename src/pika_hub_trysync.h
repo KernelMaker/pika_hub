@@ -11,6 +11,7 @@
 
 #include "src/pika_hub_common.h"
 #include "src/pika_hub_binlog_sender.h"
+#include "src/pika_hub_heartbeat.h"
 #include "src/pika_hub_binlog_manager.h"
 #include "pink/include/pink_cli.h"
 #include "pink/include/pink_thread.h"
@@ -44,6 +45,7 @@ class PikaHubTrysync : public pink::Thread {
     for (auto iter = pika_servers_->begin(); iter != pika_servers_->end();
         iter++) {
       delete static_cast<BinlogSender*>(iter->second.sender);
+      delete static_cast<Heartbeat*>(iter->second.heartbeat);
     }
     }
     StopThread();

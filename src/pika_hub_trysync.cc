@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "src/pika_hub_trysync.h"
+#include "src/pika_hub_heartbeat.h"
 #include "pink/include/redis_cli.h"
 #include "slash/include/slash_string.h"
 #include "slash/include/slash_status.h"
@@ -73,14 +74,22 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
           iter->second.ip, iter->second.port, info_log_, reader,
           pika_servers_, pika_mutex_, manager_);
       static_cast<BinlogSender*>(iter->second.sender)->StartThread();
-      Info(info_log_, "Start BinlogSender success for %d,%s:%d(%llu %llu)",
+      Info(info_log_, "Start BinlogSender[%d] success for %s:%d(%llu %llu)",
           iter->first, iter->second.ip.c_str(), iter->second.port,
           iter->second.send_number, iter->second.send_offset);
     } else {
-      Error(info_log_, "Start BinlogSender Failed for %d,%s:%d(%llu %llu)",
+      Error(info_log_, "Start BinlogSender[%d] Failed for %s:%d(%llu %llu)",
           iter->first, iter->second.ip.c_str(), iter->second.port,
           iter->second.send_number, iter->second.send_offset);
     }
+  }
+  if (iter->second.heartbeat == nullptr) {
+    iter->second.heartbeat = new Heartbeat(iter->first,
+        iter->second.ip, iter->second.port, info_log_,
+        pika_servers_, pika_mutex_);
+    static_cast<Heartbeat*>(iter->second.heartbeat)->StartThread();
+    Info(info_log_, "Start HeartBeat[%d] success for %s:%d",
+        iter->first, iter->second.ip.c_str(), iter->second.port);
   }
   return true;
 }

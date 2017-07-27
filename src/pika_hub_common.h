@@ -14,13 +14,15 @@ struct PikaStatus {
   bool should_delete = false;
   int32_t server_id = -1;
   int32_t port;
-  int32_t rcv_fd = -1;
+  int32_t rcv_fd_num = 0;
   int32_t send_fd = -1;
+  int32_t hb_fd = -1;
   uint64_t rcv_number = 0;
   uint64_t rcv_offset = 0;
   uint64_t send_number = 1;
   uint64_t send_offset = 0;
   void* sender = nullptr;
+  void* heartbeat = nullptr;
   std::string ip;
   std::string passwd;
 };

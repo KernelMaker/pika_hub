@@ -33,3 +33,4 @@
 
 tags
 output
+src/build_version.cc

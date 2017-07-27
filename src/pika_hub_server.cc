@@ -13,6 +13,7 @@
 
 #include "src/pika_hub_server.h"
 #include "src/pika_hub_command.h"
+#include "src/pika_hub_heartbeat.h"
 #include "slash/include/slash_string.h"
 
 Options SanitizeOptions(const Options& options) {
@@ -231,22 +232,19 @@ bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
       iter++) {
-    if (iter->second.ip == ip && iter->second.rcv_fd == -1 &&
-        !(iter->second.should_trysync)) {
+    if (iter->second.ip == ip && !(iter->second.should_trysync)) {
       rocksutil::Info(options_.info_log, "Check IP: %s success", ip.c_str());
-      iter->second.rcv_fd = fd;
+      iter->second.rcv_fd_num++;
       return true;
     }
   }
   rocksutil::Warn(options_.info_log, "Check IP: %s failed", ip.c_str());
   return false;
-  return true;
 }
 
 void PikaHubServer::ResetRcvFd(int fd, const std::string& ip_port) {
   std::string ip;
   int unuse_port = 0;
-  std::map<int32_t, BinlogSender*> senders;
   /*
    * find relevant items in pika_servers_ and insert its sender pointer
    * into a temp map [senders], because destroy a sender may need some time,
@@ -256,35 +254,10 @@ void PikaHubServer::ResetRcvFd(int fd, const std::string& ip_port) {
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end(); iter++) {
     slash::ParseIpPortString(ip_port, ip, unuse_port);
-    if (iter->second.ip == ip && iter->second.rcv_fd == fd) {
+    if (iter->second.ip == ip) {
       rocksutil::Info(options_.info_log, "Reset receive fd: %s",
           ip_port.c_str());
-      iter->second.rcv_fd = -1;
-      iter->second.send_fd = -1;
-      senders.insert(std::map<int32_t, BinlogSender*>::
-                      value_type(iter->first,
-                      static_cast<BinlogSender*>(iter->second.sender)));
-      iter->second.sender = nullptr;
-      iter->second.should_trysync = true;
-    }
-  }
-  }
-  /*
-   *  Destroy binlog senders out of the lock scope;
-   */
-  for (auto iter = senders.begin(); iter != senders.end(); iter++) {
-    delete iter->second;
-  }
-  /*
-   *  modify relevant items status[sender pointer & should_trysync]
-   */
-  {
-  rocksutil::MutexLock l(&pika_mutex_);
-  for (auto iter = senders.begin(); iter != senders.end(); iter++) {
-    auto it = pika_servers_.find(iter->first);
-    if (it != pika_servers_.end()) {
-      it->second.sender = nullptr;
-      it->second.should_trysync = true;
+      iter->second.rcv_fd_num--;
     }
   }
   }
@@ -298,12 +271,13 @@ std::string PikaHubServer::DumpPikaServers() {
         ", ip:" + iter->second.ip +
         ", port:" + std::to_string(iter->second.port) +
         ", password:" + iter->second.passwd +
-        ", receive_fd:" + std::to_string(iter->second.rcv_fd) +
+        ", receive_fd_num:" + std::to_string(iter->second.rcv_fd_num) +
         ", recv_offset:" + std::to_string(iter->second.rcv_number) +
         ":" + std::to_string(iter->second.rcv_offset) +
         ", send_fd:" + std::to_string(iter->second.send_fd) +
         ", send_offset:" + std::to_string(iter->second.send_number) +
         ":" + std::to_string(iter->second.send_offset) +
+        ", heartbeat_fd:" + std::to_string(iter->second.hb_fd) +
         "\r\n");
   }
   return res;
@@ -311,7 +285,7 @@ std::string PikaHubServer::DumpPikaServers() {
 
 void PikaHubServer::UpdateRcvOffset(int32_t server_id,
     int32_t number, int64_t offset) {
-  rocksutil::MutexLock l(&pika_mutex_);
+//  rocksutil::MutexLock l(&pika_mutex_);
   auto iter = pika_servers_.find(server_id);
   if (iter != pika_servers_.end()) {
     iter->second.rcv_number = number;
@@ -324,6 +298,47 @@ void PikaHubServer::GetBinlogWriterOffset(uint64_t* number,
   rocksutil::MutexLock l(&pika_mutex_);
   *number = binlog_writer_->number();
   *offset = binlog_writer_->GetOffsetInFile();
+}
+
+void PikaHubServer::DisconnectPika(int32_t server_id, bool reconnect) {
+  BinlogSender* sender = nullptr;
+  Heartbeat* hb = nullptr;
+  /*
+   * find relevant items in pika_servers_ and set its sender & hb pointer
+   * to a temp sender & hb, because destroy a sender & hb may need some time,
+   * we do it later out of the lock scope
+   */
+  {
+  rocksutil::MutexLock l(&pika_mutex_);
+  auto iter = pika_servers_.find(server_id);
+  if (iter != pika_servers_.end()) {
+    sender = static_cast<BinlogSender*>(iter->second.sender);
+    hb = static_cast<Heartbeat*>(iter->second.heartbeat);
+  }
+  }
+
+  /*
+   *  Destroy binlog senders & hb out of the lock scope;
+   */
+  delete sender;
+  delete hb;
+
+  /*
+   *  modify relevant items status[sender pointer & hb & should_trysync]
+   */
+  {
+  rocksutil::MutexLock l(&pika_mutex_);
+  auto iter = pika_servers_.find(server_id);
+  if (iter != pika_servers_.end()) {
+    iter->second.send_fd = -1;
+    iter->second.sender = nullptr;
+    iter->second.hb_fd = -1;
+    iter->second.heartbeat = nullptr;
+    if (reconnect) {
+      iter->second.should_trysync = true;
+    }
+  }
+  }
 }
 
 bool PikaHubServer::CheckPikaServers() {

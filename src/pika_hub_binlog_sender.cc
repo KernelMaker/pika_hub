@@ -39,7 +39,7 @@ void* BinlogSender::ThreadMain() {
       if ((cli->Connect(ip_, port_+ 1100)).ok()) {
         cli->set_send_timeout(3000);
         cli->set_recv_timeout(3000);
-        Info(info_log_, "BinlogSender Connect %d,%s:%d success", server_id_,
+        Info(info_log_, "BinlogSender[%d] Connect to %s:%d success", server_id_,
             ip_.c_str(), port_);
         {
         rocksutil::MutexLock l(pika_mutex_);
@@ -49,7 +49,7 @@ void* BinlogSender::ThreadMain() {
         }
         }
       } else {
-        Error(info_log_, "BinlogSender Connect %d,%s:%d failed", server_id_,
+        Error(info_log_, "BinlogSender[%d] Connect to %s:%d failed", server_id_,
             ip_.c_str(), port_);
         delete cli;
         cli = nullptr;
@@ -61,7 +61,7 @@ void* BinlogSender::ThreadMain() {
     if (str_cmd.size() != 0) {
       s = cli->Send(&str_cmd);
       if (!s.ok()) {
-        Error(info_log_, "BinlogSender Send %d,%s:%d failed", server_id_,
+        Error(info_log_, "BinlogSender[%d] Send to %s:%d failed", server_id_,
             ip_.c_str(), port_);
         {
         rocksutil::MutexLock l(pika_mutex_);
@@ -106,8 +106,8 @@ void* BinlogSender::ThreadMain() {
             continue;
           }
         } else {
-          Error(info_log_, "BinlogSender check LRU: %s is not in cache",
-              iter->key.c_str());
+          Error(info_log_, "BinlogSender[%d] check LRU: %s is not in cache",
+              server_id_, iter->key.c_str());
           UpdateSendOffset();
           continue;
         }
@@ -134,10 +134,19 @@ void* BinlogSender::ThreadMain() {
 
     } else if (read_status.IsCorruption() &&
             read_status.ToString() == "Corruption: Exit") {
-      Info(info_log_, "BinlogSender Reader exit");
+      Info(info_log_, "BinlogSender[%d] Reader exit", server_id_);
     } else {
-      Error(info_log_, "BinlogSender ReadRecord, error: %s",
-          read_status.ToString().c_str());
+      {
+      rocksutil::MutexLock l(pika_mutex_);
+      auto iter = pika_servers_->find(server_id_);
+      if (iter != pika_servers_->end()) {
+        iter->second.send_fd = -2;
+        iter->second.sender = nullptr;
+      }
+      }
+      Error(info_log_, "BinlogSender[%d] ReadRecord, error: %s",
+          server_id_, read_status.ToString().c_str());
+      break;
     }
   }
   delete cli;
