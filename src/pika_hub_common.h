@@ -9,9 +9,15 @@
 #include <string>
 #include <map>
 
+enum SyncStatus {
+  kShouldConnect = 0,
+  kConnected,
+  kErrorHappened,
+  kShouldDelete
+};
+
 struct PikaStatus {
-  bool should_trysync = true;
-  bool should_delete = false;
+  SyncStatus sync_status = kShouldConnect;
   int32_t server_id = -1;
   int32_t port;
   int32_t rcv_fd_num = 0;

@@ -98,7 +98,8 @@ PikaHubServer::PikaHubServer(const Options& options)
   inner_server_thread_ = pink::NewDispatchThread(options_.port+1000, 20,
                   inner_conn_factory_, 1000, 1000, inner_server_handler_);
   inner_server_thread_->set_keepalive_timeout(0);
-  binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env);
+  binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env,
+                      options_.info_log);
   trysync_thread_ = new PikaHubTrysync(options_.info_log, options.local_ip,
       options.port, &pika_servers_, &pika_mutex_, binlog_manager_);
   binlog_writer_ = binlog_manager_->AddWriter();
@@ -232,7 +233,7 @@ bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
       iter++) {
-    if (iter->second.ip == ip && !(iter->second.should_trysync)) {
+    if (iter->second.ip == ip && iter->second.sync_status == kConnected) {
       rocksutil::Info(options_.info_log, "Check IP: %s success", ip.c_str());
       iter->second.rcv_fd_num++;
       return true;
@@ -271,6 +272,7 @@ std::string PikaHubServer::DumpPikaServers() {
         ", ip:" + iter->second.ip +
         ", port:" + std::to_string(iter->second.port) +
         ", password:" + iter->second.passwd +
+        ", sync_status:" + std::to_string(iter->second.sync_status) +
         ", receive_fd_num:" + std::to_string(iter->second.rcv_fd_num) +
         ", recv_offset:" + std::to_string(iter->second.rcv_number) +
         ":" + std::to_string(iter->second.rcv_offset) +
@@ -285,9 +287,12 @@ std::string PikaHubServer::DumpPikaServers() {
 
 void PikaHubServer::UpdateRcvOffset(int32_t server_id,
     int32_t number, int64_t offset) {
-//  rocksutil::MutexLock l(&pika_mutex_);
+  rocksutil::MutexLock l(&pika_mutex_);
   auto iter = pika_servers_.find(server_id);
   if (iter != pika_servers_.end()) {
+    if (static_cast<uint64_t>(number) < iter->second.rcv_number) {
+      return;
+    }
     iter->second.rcv_number = number;
     iter->second.rcv_offset = offset;
   }
@@ -324,7 +329,7 @@ void PikaHubServer::DisconnectPika(int32_t server_id, bool reconnect) {
   delete hb;
 
   /*
-   *  modify relevant items status[sender pointer & hb & should_trysync]
+   *  modify relevant items status[sender pointer & hb & kShouldConnect]
    */
   {
   rocksutil::MutexLock l(&pika_mutex_);
@@ -335,7 +340,7 @@ void PikaHubServer::DisconnectPika(int32_t server_id, bool reconnect) {
     iter->second.hb_fd = -1;
     iter->second.heartbeat = nullptr;
     if (reconnect) {
-      iter->second.should_trysync = true;
+      iter->second.sync_status = kShouldConnect;
     }
   }
   }
@@ -379,18 +384,20 @@ bool PikaHubServer::CheckPikaServers() {
     prev_pos = str.find_first_not_of(',', pos);
     pos = str.find_first_of(',', prev_pos);
   }
+
   return true;
 }
 
 bool PikaHubServer::RecoverOffset() {
+  rocksutil::Info(options_.info_log, "Wait for floyd electing leader...");
   while (!should_exit_ && !floyd_->HasLeader()) {
-    rocksutil::Info(options_.info_log, "Wait for floyd leader...");
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   if (should_exit_) {
     rocksutil::Info(options_.info_log, "RecoverOffset, exit");
     return false;
   }
+  rocksutil::Info(options_.info_log, "floyd leader elected");
 
   /*
    * We call RecoverOffset before starting, so we could modify

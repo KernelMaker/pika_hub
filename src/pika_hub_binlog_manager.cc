@@ -53,6 +53,8 @@ rocksutil::Status BinlogManager::RecoverLruCache(int64_t* nums) {
   if (reader == nullptr) {
     return rocksutil::Status::NotFound();
   }
+  Info(info_log_, "RecoverLruCache from binlog_%d to binlog_%d",
+      smallest_, number_ - 1);
   *nums = 0;
   rocksutil::Status s;
   std::vector<BinlogFields> result;
@@ -92,7 +94,7 @@ rocksutil::Status BinlogManager::RecoverLruCache(int64_t* nums) {
 }
 
 BinlogManager* CreateBinlogManager(const std::string& log_path,
-    rocksutil::Env* env) {
+    rocksutil::Env* env, std::shared_ptr<rocksutil::Logger> info_log) {
   std::vector<std::string> result;
   rocksutil::Status s = env->GetChildren(log_path, &result);
 
@@ -112,5 +114,5 @@ BinlogManager* CreateBinlogManager(const std::string& log_path,
 
   largest++;
 
-  return new BinlogManager(log_path, env, largest, smallest);
+  return new BinlogManager(log_path, env, largest, smallest, info_log);
 }

@@ -17,12 +17,18 @@ class BinlogManager {
  public:
   BinlogManager(const std::string& log_path,
       rocksutil::Env* env,
-      uint64_t number, uint64_t smallest)
+      uint64_t number, uint64_t smallest,
+      std::shared_ptr<rocksutil::Logger> info_log)
     : log_path_(log_path), env_(env),
     number_(number), offset_(0),
     smallest_(smallest),
     cv_(&mutex_),
-    lru_cache_(rocksutil::NewLRUCache(1000000000)) {}
+    lru_cache_(rocksutil::NewLRUCache(1000000000, 1)),
+    info_log_(info_log) {}
+
+  ~BinlogManager() {
+    lru_cache_->DisownData();
+  }
 
   BinlogWriter* AddWriter();
   BinlogReader* AddReader(uint64_t number, uint64_t offset,
@@ -56,9 +62,10 @@ class BinlogManager {
   rocksutil::port::Mutex mutex_;
   rocksutil::port::CondVar cv_;
   std::shared_ptr<rocksutil::Cache> lru_cache_;
+  std::shared_ptr<rocksutil::Logger> info_log_;
 };
 
 extern BinlogManager* CreateBinlogManager(const std::string& log_path,
-    rocksutil::Env* env);
+    rocksutil::Env* env, std::shared_ptr<rocksutil::Logger> info_log);
 
 #endif  // SRC_PIKA_HUB_BINLOG_MANAGER_H_

@@ -75,7 +75,7 @@ void* BinlogSender::ThreadMain() {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         continue;
       } else {
-        UpdateSendOffset();
+//        UpdateSendOffset();
       }
       args.clear();
       str_cmd.clear();
@@ -91,7 +91,7 @@ void* BinlogSender::ThreadMain() {
       for (auto iter = result.begin(); iter != result.end();
             iter++) {
         if (server_id_ == iter->server_id) {
-          UpdateSendOffset();
+//          UpdateSendOffset();
           continue;
         }
 
@@ -101,14 +101,14 @@ void* BinlogSender::ThreadMain() {
           int32_t _exec_time = static_cast<CacheEntity*>(
               manager_->lru_cache()->Value(handle))->exec_time;
           if (iter->exec_time < _exec_time) {
-            UpdateSendOffset();
+//            UpdateSendOffset();
             manager_->lru_cache()->Release(handle);
             continue;
           }
         } else {
           Error(info_log_, "BinlogSender[%d] check LRU: %s is not in cache",
               server_id_, iter->key.c_str());
-          UpdateSendOffset();
+//          UpdateSendOffset();
           continue;
         }
         manager_->lru_cache()->Release(handle);
@@ -131,7 +131,7 @@ void* BinlogSender::ThreadMain() {
         str_cmd.append(tmp_str);
         args.clear();
       }
-
+      UpdateSendOffset();
     } else if (read_status.IsCorruption() &&
             read_status.ToString() == "Corruption: Exit") {
       Info(info_log_, "BinlogSender[%d] Reader exit", server_id_);

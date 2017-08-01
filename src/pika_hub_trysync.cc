@@ -16,14 +16,16 @@ bool PikaHubTrysync::Send(pink::PinkCli* cli,
     const PikaServers::iterator& iter) {
   pink::RedisCmdArgsType argv;
   std::string wbuf_str;
+  uint64_t number =
+    iter->second.rcv_number >= 10 ? iter->second.rcv_number - 10 : 0;
 
   argv.clear();
   std::string tbuf_str;
   argv.push_back("internaltrysync");
   argv.push_back(local_ip_);
   argv.push_back(std::to_string(local_port_));
-  argv.push_back(std::to_string(iter->second.rcv_number));
-  argv.push_back(std::to_string(iter->second.rcv_offset));
+  argv.push_back(std::to_string(number));
+  argv.push_back(std::to_string(0));
 
   pink::SerializeRedisCommand(argv, &tbuf_str);
 
@@ -33,7 +35,7 @@ bool PikaHubTrysync::Send(pink::PinkCli* cli,
   if (!s.ok()) {
     Error(info_log_, "Trysync master %d,%s:%d(%llu %llu), Send, error: %s",
       iter->first, iter->second.ip.c_str(), iter->second.port,
-      iter->second.rcv_number, iter->second.rcv_offset,
+      number, 0,
       s.ToString().c_str());
     return false;
   }
@@ -44,13 +46,15 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
     const PikaServers::iterator& iter) {
   slash::Status s;
   std::string reply;
+  uint64_t number =
+    iter->second.rcv_number >= 10 ? iter->second.rcv_number - 10 : 0;
 
   pink::RedisCmdArgsType argv;
   s = cli->Recv(&argv);
   if (!s.ok()) {
     Error(info_log_, "Trysync master %d,%s:%d(%llu %llu), Recv, error: %s",
       iter->first, iter->second.ip.c_str(), iter->second.port,
-      iter->second.rcv_number, iter->second.rcv_offset,
+      number, 0,
       strerror(errno));
     return false;
   }
@@ -61,14 +65,15 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
     Error(info_log_,
       "Trysync master %d,%s:%d(%llu %llu), Recv, logic error: %s",
       iter->first, iter->second.ip.c_str(), iter->second.port,
-      iter->second.rcv_number, iter->second.rcv_offset,
+      number, 0,
       reply.c_str());
+    iter->second.sync_status = kErrorHappened;
     return false;
   }
-  iter->second.should_trysync = false;
+  iter->second.sync_status = kConnected;
   if (iter->second.sender == nullptr) {
     BinlogReader* reader = manager_->AddReader(iter->second.send_number,
-        iter->second.send_offset);
+        0);
     if (reader) {
       iter->second.sender = new BinlogSender(iter->first,
           iter->second.ip, iter->second.port, info_log_, reader,
@@ -76,11 +81,11 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
       static_cast<BinlogSender*>(iter->second.sender)->StartThread();
       Info(info_log_, "Start BinlogSender[%d] success for %s:%d(%llu %llu)",
           iter->first, iter->second.ip.c_str(), iter->second.port,
-          iter->second.send_number, iter->second.send_offset);
+          iter->second.send_number, 0);
     } else {
       Error(info_log_, "Start BinlogSender[%d] Failed for %s:%d(%llu %llu)",
           iter->first, iter->second.ip.c_str(), iter->second.port,
-          iter->second.send_number, iter->second.send_offset);
+          iter->second.send_number, 0);
     }
   }
   if (iter->second.heartbeat == nullptr) {
@@ -99,6 +104,8 @@ void PikaHubTrysync::Trysync(const PikaServers::
   pink::PinkCli* cli = pink::NewRedisCli();
   cli->set_connect_timeout(1500);
   std::string master_ip;
+  uint64_t number =
+    iter->second.rcv_number >= 10 ? iter->second.rcv_number - 10 : 0;
   if ((cli->Connect(iter->second.ip, iter->second.port)).ok()) {
     cli->set_send_timeout(3000);
     cli->set_recv_timeout(3000);
@@ -106,13 +113,13 @@ void PikaHubTrysync::Trysync(const PikaServers::
       Info(info_log_, "Trysync master %d,%s:%d(%llu %llu) success",
           iter->first,
           iter->second.ip.c_str(), iter->second.port,
-          iter->second.rcv_number, iter->second.rcv_offset);
+          number, 0);
     }
   } else {
     Error(info_log_, "Trysync master %d,%s:%d(%llu %llu) connect failed",
           iter->first,
           iter->second.ip.c_str(), iter->second.port,
-          iter->second.rcv_number, iter->second.rcv_offset);
+          number, 0);
   }
   delete cli;
 }
@@ -122,11 +129,11 @@ void* PikaHubTrysync::ThreadMain() {
     {
     rocksutil::MutexLock l(pika_mutex_);
     for (auto it = pika_servers_->begin(); it != pika_servers_->end(); it++) {
-      if (it->second.should_delete) {
+      if (it->second.sync_status == kShouldDelete) {
         delete static_cast<BinlogSender*>(it->second.sender);
         it = pika_servers_->erase(it);
       }
-      if (it->second.should_trysync) {
+      if (it->second.sync_status == kShouldConnect) {
         Trysync(it);
       }
     }
