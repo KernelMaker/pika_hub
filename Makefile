@@ -4,6 +4,7 @@ PLATFORM_LDFLAGS= -lpthread -lrt
 PLATFORM_CXXFLAGS= -std=c++11 -fno-builtin-memcmp -msse -msse4.2 
 PROFILING_FLAGS=-pg
 OPT=
+LDFLAGS += -Wl,-rpath=$(RPATH)
 
 # DEBUG_LEVEL can have two values:
 # * DEBUG_LEVEL=2; this is the ultimate debug mode. It will compile pika_hub
@@ -32,8 +33,15 @@ OPT += -momit-leaf-frame-pointer
 endif
 else
 $(warning Warning: Compiling in debug mode. Don't use the resulting binary in production)
+OPT += $(PROFILING_FLAGS)
 DEBUG_SUFFIX = "_debug"
 endif
+
+# Link tcmalloc if exist
+dummy := $(shell ("$(CURDIR)/detect_environment" "$(CURDIR)/make_config.mk"))
+include make_config.mk
+CLEAN_FILES += $(CURDIR)/make_config.mk
+PLATFORM_LDFLAGS += $(TCMALLOC_LDFLAGS)
 
 # ----------------------------------------------
 OUTPUT = $(CURDIR)/output
@@ -216,7 +224,7 @@ $(ROCKSDB):
 clean:
 	rm -f $(BINARY)
 	rm -rf $(CLEAN_FILES)
-	find $(SRC_PATH) -name "*.[oda]" -exec rm -f {} \;
+	find $(SRC_PATH) -name "*.[oda]*" -exec rm -f {} \;
 	find $(SRC_PATH) -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
 
 distclean: clean

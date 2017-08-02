@@ -23,7 +23,7 @@ class BinlogManager {
     number_(number), offset_(0),
     smallest_(smallest),
     cv_(&mutex_),
-    lru_cache_(rocksutil::NewLRUCache(1000000000, 1)),
+    lru_cache_(rocksutil::NewLRUCache(100000000, 0)),
     info_log_(info_log) {}
 
   ~BinlogManager() {

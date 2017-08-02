@@ -17,7 +17,8 @@ bool PikaHubTrysync::Send(pink::PinkCli* cli,
   pink::RedisCmdArgsType argv;
   std::string wbuf_str;
   uint64_t number =
-    iter->second.rcv_number >= 10 ? iter->second.rcv_number - 10 : 0;
+    iter->second.rcv_number >= kMaxRecvRollbackNums ?
+      iter->second.rcv_number - kMaxRecvRollbackNums : 0;
 
   argv.clear();
   std::string tbuf_str;
@@ -47,7 +48,8 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
   slash::Status s;
   std::string reply;
   uint64_t number =
-    iter->second.rcv_number >= 10 ? iter->second.rcv_number - 10 : 0;
+    iter->second.rcv_number >= kMaxRecvRollbackNums ?
+      iter->second.rcv_number - kMaxRecvRollbackNums : 0;
 
   pink::RedisCmdArgsType argv;
   s = cli->Recv(&argv);
@@ -105,7 +107,8 @@ void PikaHubTrysync::Trysync(const PikaServers::
   cli->set_connect_timeout(1500);
   std::string master_ip;
   uint64_t number =
-    iter->second.rcv_number >= 10 ? iter->second.rcv_number - 10 : 0;
+    iter->second.rcv_number >= kMaxRecvRollbackNums ?
+      iter->second.rcv_number - kMaxRecvRollbackNums : 0;
   if ((cli->Connect(iter->second.ip, iter->second.port)).ok()) {
     cli->set_send_timeout(3000);
     cli->set_recv_timeout(3000);

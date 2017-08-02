@@ -59,11 +59,8 @@ void InfoCmd::Do() {
     g_pika_hub_server->last_qps() << "\r\n";
   tmp_stream << "total_commands_processed:" <<
     g_pika_hub_server->query_num() << "\r\n";
-  tmp_stream << "lru_cache_memory_usage:" <<
+  tmp_stream << "lru_cache_record_num:" <<
     g_pika_hub_server->binlog_manager()->GetLruMemUsage() << "\r\n";
-  tmp_stream << "lru_cache_memory_usage_human:" <<
-    g_pika_hub_server->binlog_manager()->GetLruMemUsage() / 1024
-    / 1024 << "MB\r\n";
 
   tmp_stream << "# Pika-Servers\r\n";
   uint64_t number = 0;

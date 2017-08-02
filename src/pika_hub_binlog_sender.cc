@@ -36,7 +36,7 @@ void* BinlogSender::ThreadMain() {
     if (cli == nullptr) {
       cli = pink::NewRedisCli();
       cli->set_connect_timeout(1500);
-      if ((cli->Connect(ip_, port_+ 1100)).ok()) {
+      if ((cli->Connect(ip_, port_+ kPikaPortInterval)).ok()) {
         cli->set_send_timeout(3000);
         cli->set_recv_timeout(3000);
         Info(info_log_, "BinlogSender[%d] Connect to %s:%d success", server_id_,
@@ -75,23 +75,16 @@ void* BinlogSender::ThreadMain() {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         continue;
       } else {
-//        UpdateSendOffset();
       }
       args.clear();
       str_cmd.clear();
     }
 
-//    read_status = reader_->ReadRecord(&op, &key, &value,
-//        &server_id, &exec_time);
     read_status = reader_->ReadRecord(&result);
     if (read_status.ok()) {
-//      Info(info_log_,
-//          "op: %d, key: %s, value: %s, server_id: %d, exec_time: %d",
-//          op, key.c_str(), value.c_str(), server_id, exec_time);
       for (auto iter = result.begin(); iter != result.end();
             iter++) {
         if (server_id_ == iter->server_id) {
-//          UpdateSendOffset();
           continue;
         }
 
@@ -101,14 +94,12 @@ void* BinlogSender::ThreadMain() {
           int32_t _exec_time = static_cast<CacheEntity*>(
               manager_->lru_cache()->Value(handle))->exec_time;
           if (iter->exec_time < _exec_time) {
-//            UpdateSendOffset();
             manager_->lru_cache()->Release(handle);
             continue;
           }
         } else {
           Error(info_log_, "BinlogSender[%d] check LRU: %s is not in cache",
               server_id_, iter->key.c_str());
-//          UpdateSendOffset();
           continue;
         }
         manager_->lru_cache()->Release(handle);

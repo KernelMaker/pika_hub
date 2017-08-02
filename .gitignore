@@ -35,3 +35,4 @@ tags
 output
 src/build_version.cc
 *.d.*
+make_config.mk

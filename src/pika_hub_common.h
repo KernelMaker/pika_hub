@@ -59,6 +59,9 @@ const char kBinlogPrefix[] = "binlog_";
 const int32_t kMaxBinlogFileSize = 100 * 1024 * 1024;
 const char kBinlogMagic[] = "__PIKA_X#$SKGI";
 
-const int32_t kMaxRecoverNums = 100;
+const int32_t kMaxRecoverNums = 30;
+const int32_t kMaxRecvRollbackNums = 10;
+const int32_t kMaxRetryTimes = 10;
+const int32_t kPikaPortInterval = 1100;
 
 #endif  // SRC_PIKA_HUB_COMMON_H_

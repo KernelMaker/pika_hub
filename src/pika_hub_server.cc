@@ -7,10 +7,6 @@
 #include <cstring>
 #include <map>
 
-//  #include <thread>
-//  #include <iostream>
-//  #include <chrono>
-
 #include "src/pika_hub_server.h"
 #include "src/pika_hub_command.h"
 #include "src/pika_hub_heartbeat.h"
@@ -123,35 +119,7 @@ PikaHubServer::~PikaHubServer() {
   delete floyd_;
 }
 
-//  std::atomic<int32_t> count;
-//  void Func(BinlogWriter* writer, int i) {
-//    char key[32];
-//    for (int j = 0; j < 100000; j++) {
-//      sprintf(key, "key_%d_%d", i, j);
-//      writer->Append(0, key, "value", i, 1234);
-//      count++;
-//    }
-//  }
-
 slash::Status PikaHubServer::Start() {
-//  count = 0;
-//  auto start = std::chrono::steady_clock::now();
-//  std::thread* threads[10];
-//  for (int i = 0; i < 10; i++) {
-//    threads[i] = new std::thread(Func, binlog_writer_, i);
-//  }
-//  for (int i = 0; i < 10; i++) {
-//    threads[i]->join();
-//  }
-//  auto end = std::chrono::steady_clock::now();
-//  std::cout << "used " << (end-start).count() << std::endl;
-//  std::cout << "Count " << count << std::endl;
-//  for (int i = 0; i < 10; i++) {
-//    delete threads[i];
-//  }
-//  return slash::Status::OK();
-
-
   if (!CheckPikaServers()) {
     rocksutil::Fatal(options_.info_log, "Invalid pika-servers");
     return slash::Status::Corruption("Invalid pika-server");
@@ -174,7 +142,7 @@ slash::Status PikaHubServer::Start() {
 
   int64_t recovered_key_nums = 0;
   rocksutil::Status s = binlog_manager_->RecoverLruCache(&recovered_key_nums);
-  if (!s.ok()) {
+  if (!s.ok() && !s.IsNotFound()) {
     rocksutil::Fatal(options_.info_log, "Recover lru failed %s",
         s.ToString().c_str());
   }
@@ -408,6 +376,9 @@ bool PikaHubServer::RecoverOffset() {
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
       iter++) {
     s = floyd_->Read(std::to_string(iter->first), value);
+    if (s.IsNotFound()) {
+      return true;
+    }
     if (!s.ok()) {
       rocksutil::Error(options_.info_log,
           "RecoverOffset, read floyd error: %s", s.ToString().c_str());
