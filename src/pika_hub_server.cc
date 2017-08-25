@@ -325,7 +325,11 @@ bool PikaHubServer::CheckPikaServers() {
 
   while (prev_pos != std::string::npos || pos != std::string::npos) {
     memset(token, '\0', 1024);
-    strncpy(token, str.data() + prev_pos, pos - prev_pos);
+    if (pos == std::string::npos) {
+      strncpy(token, str.data() + prev_pos, str.size() - prev_pos);
+    } else {
+      strncpy(token, str.data() + prev_pos, pos - prev_pos);
+    }
 
     token_in = std::strtok(token, ":");
     status.ip = token_in != NULL ? token_in : "";

@@ -127,17 +127,44 @@ void* BinlogSender::ThreadMain() {
             read_status.ToString() == "Corruption: Exit") {
       Info(info_log_, "BinlogSender[%d] Reader exit", server_id_);
     } else {
+      delete reader_;
+      if (error_times_ > kMaxRetryTimes) {
+        Error(info_log_, "BinlogSender[%d] ReadRecord, EXIT, error: %s",
+            server_id_, read_status.ToString().c_str());
+        {
+        rocksutil::MutexLock l(pika_mutex_);
+        auto iter = pika_servers_->find(server_id_);
+        if (iter != pika_servers_->end()) {
+          iter->second.send_fd = -2;
+          iter->second.sender = nullptr;
+        }
+        }
+        break;
+      }
+
+      error_times_++;
+      Warn(info_log_, "BinlogSender[%d] ReadRecord once[%d], RETRY, error: %s",
+          server_id_, error_times_, read_status.ToString().c_str());
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
       {
       rocksutil::MutexLock l(pika_mutex_);
       auto iter = pika_servers_->find(server_id_);
       if (iter != pika_servers_->end()) {
-        iter->second.send_fd = -2;
-        iter->second.sender = nullptr;
+        reader_ = manager_->AddReader(iter->second.send_number,
+            iter->second.send_offset);
+        if (reader_ == nullptr) {
+          Error(info_log_, "BinlogSender[%d] AddReader error when RETRY",
+              server_id_);
+          iter->second.send_fd = -2;
+          iter->second.sender = nullptr;
+          break;
+        }
+      } else {
+        Error(info_log_, "BinlogSender[%d] Cant Find server_id when RETRY",
+          server_id_);
+        break;
       }
       }
-      Error(info_log_, "BinlogSender[%d] ReadRecord, error: %s",
-          server_id_, read_status.ToString().c_str());
-      break;
     }
   }
   delete cli;

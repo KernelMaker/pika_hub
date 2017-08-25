@@ -29,7 +29,8 @@ class BinlogSender : public pink::Thread {
     reader_(reader),
     pika_servers_(pika_servers),
     pika_mutex_(pika_mutex),
-    manager_(manager) {}
+    manager_(manager),
+    error_times_(0) {}
 
   virtual ~BinlogSender() {
     set_should_stop();
@@ -50,6 +51,7 @@ class BinlogSender : public pink::Thread {
   // protect pika_servers_
   rocksutil::port::Mutex* pika_mutex_;
   BinlogManager* manager_;
+  int32_t error_times_;
 
   virtual void* ThreadMain() override;
 };
