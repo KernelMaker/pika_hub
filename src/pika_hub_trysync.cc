@@ -74,7 +74,9 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
   }
   iter->second.sync_status = kConnected;
   if (iter->second.sender == nullptr) {
-    BinlogReader* reader = manager_->AddReader(iter->second.send_number,
+    uint64_t number = iter->second.send_number > 1 ?
+            iter->second.send_number - 1 : 1;
+    BinlogReader* reader = manager_->AddReader(number,
         0);
     if (reader) {
       iter->second.sender = new BinlogSender(iter->first,
@@ -83,11 +85,11 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
       static_cast<BinlogSender*>(iter->second.sender)->StartThread();
       Info(info_log_, "Start BinlogSender[%d] success for %s:%d(%llu %llu)",
           iter->first, iter->second.ip.c_str(), iter->second.port,
-          iter->second.send_number, 0);
+          number, 0);
     } else {
       Error(info_log_, "Start BinlogSender[%d] Failed for %s:%d(%llu %llu)",
           iter->first, iter->second.ip.c_str(), iter->second.port,
-          iter->second.send_number, 0);
+          number, 0);
     }
   }
   if (iter->second.heartbeat == nullptr) {
