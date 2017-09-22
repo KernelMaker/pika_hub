@@ -63,7 +63,14 @@ rocksutil::Status BinlogReader::ReadRecord(
           manager_->GetWriterOffset(&writer_number, &writer_offset);
           reader_offset = reader_->EndOfBufferOffset();
         }
-        reader_->UnmarkEOF();
+        uint64_t cur_file_size;
+        env_->GetFileSize(log_path_ + "/" + kBinlogPrefix +
+            std::to_string(number_), &cur_file_size);
+        if (cur_file_size > reader_offset) {
+          reader_->UnmarkEOF();
+          manager_->mutex()->Unlock();
+          continue;
+        }
         manager_->mutex()->Unlock();
         rocksutil::Status s = env_->FileExists(log_path_ + "/" + kBinlogPrefix +
               std::to_string(number_+1));

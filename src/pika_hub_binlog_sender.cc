@@ -128,6 +128,7 @@ void* BinlogSender::ThreadMain() {
       Info(info_log_, "BinlogSender[%d] Reader exit", server_id_);
     } else {
       delete reader_;
+      error_times_++;
       if (error_times_ > kMaxRetryTimes) {
         Error(info_log_, "BinlogSender[%d] ReadRecord, EXIT, error: %s",
             server_id_, read_status.ToString().c_str());
@@ -142,7 +143,6 @@ void* BinlogSender::ThreadMain() {
         break;
       }
 
-      error_times_++;
       Warn(info_log_, "BinlogSender[%d] ReadRecord once[%d], RETRY, error: %s",
           server_id_, error_times_, read_status.ToString().c_str());
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
