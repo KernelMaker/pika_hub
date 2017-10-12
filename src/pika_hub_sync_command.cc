@@ -77,3 +77,34 @@ void DelCmd::Do() {
   }
   return;
 }
+
+void ExpireatCmd::DoInitial(const PikaCmdArgsType &argv,
+    const CmdInfo* const ptr_info) {
+  if (!ptr_info->CheckArg(argv.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameExpireat);
+    return;
+  }
+  if (argv[3] != kBinlogMagic) {
+    res_.SetRes(CmdRes::kInvalidMagic, kCmdNameExpireat);
+    return;
+  }
+  key_ = argv[1];
+  timestamp_ = argv[2];
+  slash::string2l(argv[4].data(), argv[4].size(), &server_id_);
+  exec_time_ = rocksutil::DecodeFixed32(argv[5].data());
+  number_ = rocksutil::DecodeFixed32(argv[5].data() + 4);
+  offset_ = rocksutil::DecodeFixed64(argv[5].data() + 8);
+}
+
+void ExpireatCmd::Do() {
+  rocksutil::Status s = g_pika_hub_server->binlog_writer()->
+    Append(kExpireatOPCode, key_, timestamp_, server_id_, exec_time_);
+  if (s.ok()) {
+    g_pika_hub_server->UpdateRcvOffset(server_id_,
+        number_, offset_);
+  } else {
+    Error(g_pika_hub_server->GetLogger(), "Append Entry Error: %s",
+        s.ToString().c_str());
+  }
+  return;
+}

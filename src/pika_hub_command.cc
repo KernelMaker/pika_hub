@@ -30,11 +30,14 @@ void InitCmdInfoTable() {
   CmdInfo* setptr = new CmdInfo(kCmdNameSet, 7,
       kCmdFlagsWrite);
   cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameSet, setptr));
-
   // Del
   CmdInfo* delptr = new CmdInfo(kCmdNameDel, 6,
       kCmdFlagsWrite);
   cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameDel, delptr));
+  // Expireat
+  CmdInfo* expireatptr = new CmdInfo(kCmdNameExpireat, 7,
+      kCmdFlagsWrite);
+  cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameExpireat, expireatptr));
 }
 
 void DestoryCmdInfoTable() {
@@ -64,10 +67,12 @@ void InitCmdTable(std::unordered_map<std::string, Cmd*> *cmd_table) {
   // Set
   Cmd* setptr = new SetCmd();
   cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameSet, setptr));
-
   // Del
   Cmd* delptr = new DelCmd();
   cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameDel, delptr));
+  // Expireat
+  Cmd* expireatptr = new ExpireatCmd();
+  cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameExpireat, expireatptr));
 }
 
 Cmd* GetCmdFromTable(const std::string& opt, const CmdTable& cmd_table) {

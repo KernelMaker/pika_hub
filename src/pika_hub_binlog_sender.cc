@@ -111,12 +111,18 @@ void* BinlogSender::ThreadMain() {
           case kDelOPCode:
             args.push_back("del");
             break;
+          case kExpireatOPCode:
+            args.push_back("expireat");
+            break;
         }
 
         args.push_back(iter->key);
 
         switch (iter->op) {
           case kSetOPCode:
+            args.push_back(iter->value);
+            break;
+          case kExpireatOPCode:
             args.push_back(iter->value);
             break;
         }

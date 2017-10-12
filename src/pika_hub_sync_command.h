@@ -40,4 +40,19 @@ class DelCmd : public Cmd {
   int64_t offset_;
 };
 
+class ExpireatCmd : public Cmd {
+ public:
+  ExpireatCmd() {}
+  virtual void Do() override;
+ private:
+  virtual void DoInitial(const PikaCmdArgsType &argvs,
+      const CmdInfo* const ptr_info) override;
+  std::string key_;
+  std::string timestamp_;
+  int64_t server_id_;
+  int32_t exec_time_;
+  int32_t number_;
+  int64_t offset_;
+};
+
 #endif  // SRC_PIKA_HUB_SYNC_COMMAND_H_
