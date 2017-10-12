@@ -46,3 +46,34 @@ void SetCmd::Do() {
   }
   return;
 }
+
+void DelCmd::DoInitial(const PikaCmdArgsType &argv,
+    const CmdInfo* const ptr_info) {
+  if (!ptr_info->CheckArg(argv.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameDel);
+    return;
+  }
+  if (argv[2] != kBinlogMagic) {
+    res_.SetRes(CmdRes::kInvalidMagic, kCmdNameDel);
+    return;
+  }
+  key_ = argv[1];
+  value_ = "";
+  slash::string2l(argv[3].data(), argv[3].size(), &server_id_);
+  exec_time_ = rocksutil::DecodeFixed32(argv[4].data());
+  number_ = rocksutil::DecodeFixed32(argv[4].data() + 4);
+  offset_ = rocksutil::DecodeFixed64(argv[4].data() + 8);
+}
+
+void DelCmd::Do() {
+  rocksutil::Status s = g_pika_hub_server->binlog_writer()->
+    Append(kDelOPCode, key_, value_, server_id_, exec_time_);
+  if (s.ok()) {
+    g_pika_hub_server->UpdateRcvOffset(server_id_,
+        number_, offset_);
+  } else {
+    Error(g_pika_hub_server->GetLogger(), "Append Entry Error: %s",
+        s.ToString().c_str());
+  }
+  return;
+}

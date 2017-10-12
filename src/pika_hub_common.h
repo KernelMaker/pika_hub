@@ -53,7 +53,7 @@ struct CacheEntity {
 };
 
 const uint8_t kSetOPCode = 1;
-const uint8_t kDeleteOPCode = 2;
+const uint8_t kDelOPCode = 2;
 
 const char kBinlogPrefix[] = "binlog_";
 const int32_t kMaxBinlogFileSize = 100 * 1024 * 1024;

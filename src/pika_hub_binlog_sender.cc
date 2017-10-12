@@ -108,6 +108,9 @@ void* BinlogSender::ThreadMain() {
           case kSetOPCode:
             args.push_back("set");
             break;
+          case kDelOPCode:
+            args.push_back("del");
+            break;
         }
 
         args.push_back(iter->key);

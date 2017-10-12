@@ -21,6 +21,7 @@ const char kCmdNameInfo[] = "info";
 
 //  Sync command
 const char kCmdNameSet[] = "set";
+const char kCmdNameDel[] = "del";
 
 typedef pink::RedisCmdArgsType PikaCmdArgsType;
 
