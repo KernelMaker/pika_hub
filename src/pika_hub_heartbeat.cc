@@ -75,12 +75,12 @@ void* Heartbeat::ThreadMain() {
       Warn(info_log_, "Heartbeat[%d] Recv from %s:%d failed:%s", server_id_,
           ip_.c_str(), port_, s.ToString().c_str());
       if (s.IsIOError() || (++error_times) > kMaxRetryTimes) {
-      delete cli;
-      cli = nullptr;
-      g_pika_hub_server->DisconnectPika(server_id_);
-      Error(info_log_, "Heartbeat[%d] with %s:%d disconnect", server_id_,
-          ip_.c_str(), port_);
-      break;
+        delete cli;
+        cli = nullptr;
+        g_pika_hub_server->DisconnectPika(server_id_);
+        Error(info_log_, "Heartbeat[%d] with %s:%d disconnect", server_id_,
+            ip_.c_str(), port_);
+        break;
       }
       std::this_thread::sleep_for(std::chrono::seconds(2));
       continue;

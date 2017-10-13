@@ -7,6 +7,7 @@ pika_hub is a transfer service to support multi pika servers syncing commands be
 |DEL|
 |SETNX|
 |MSET|
+|MSETNX|
 |INCR|
 |INCRBY|
 |INCRBYFLOAT|

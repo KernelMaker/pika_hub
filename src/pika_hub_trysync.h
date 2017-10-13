@@ -65,6 +65,8 @@ class PikaHubTrysync : public pink::Thread {
         const PikaServers::iterator& iter);
   bool Recv(pink::PinkCli* cli,
         const PikaServers::iterator& iter);
+  bool Auth(pink::PinkCli* cli,
+        const PikaServers::iterator& iter);
   virtual void* ThreadMain() override;
 };
 

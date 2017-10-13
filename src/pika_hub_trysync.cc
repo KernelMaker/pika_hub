@@ -12,6 +12,46 @@
 #include "slash/include/slash_string.h"
 #include "slash/include/slash_status.h"
 
+bool PikaHubTrysync::Auth(pink::PinkCli* cli,
+    const PikaServers::iterator& iter) {
+  if (iter->second.passwd == "") {
+    return true;
+  }
+
+  pink::RedisCmdArgsType argv;
+  std::string wbuf_str;
+  argv.clear();
+  argv.push_back("auth");
+  argv.push_back(iter->second.passwd);
+  pink::SerializeRedisCommand(argv, &wbuf_str);
+  slash::Status s = cli->Send(&wbuf_str);
+  if (!s.ok()) {
+    Error(info_log_, "Trysync master %d,%s:%d Auth, "
+      "Send, error: %s",
+      iter->first, iter->second.ip.c_str(), iter->second.port,
+      s.ToString().c_str());
+    return false;
+  }
+
+  s = cli->Recv(&argv);
+  if (!s.ok()) {
+    Error(info_log_, "Trysync master %d,%s:%d Auth, "
+      "Recv, error: %s",
+      iter->first, iter->second.ip.c_str(), iter->second.port,
+      strerror(errno));
+    return false;
+  }
+
+  std::string result = slash::StringToLower(argv[0]);
+  if (result != "ok") {
+    Error(info_log_, "Trysync master %d,%s:%d Auth failed",
+      iter->first, iter->second.ip.c_str(), iter->second.port);
+    return false;
+  }
+
+  return true;
+}
+
 bool PikaHubTrysync::Send(pink::PinkCli* cli,
     const PikaServers::iterator& iter) {
   pink::RedisCmdArgsType argv;
@@ -21,16 +61,13 @@ bool PikaHubTrysync::Send(pink::PinkCli* cli,
       iter->second.rcv_number - kMaxRecvRollbackNums : 0;
 
   argv.clear();
-  std::string tbuf_str;
   argv.push_back("internaltrysync");
   argv.push_back(local_ip_);
   argv.push_back(std::to_string(local_port_));
   argv.push_back(std::to_string(number));
   argv.push_back(std::to_string(0));
 
-  pink::SerializeRedisCommand(argv, &tbuf_str);
-
-  wbuf_str.append(tbuf_str);
+  pink::SerializeRedisCommand(argv, &wbuf_str);
 
   slash::Status s = cli->Send(&wbuf_str);
   if (!s.ok()) {
@@ -114,6 +151,9 @@ void PikaHubTrysync::Trysync(const PikaServers::
   if ((cli->Connect(iter->second.ip, iter->second.port)).ok()) {
     cli->set_send_timeout(3000);
     cli->set_recv_timeout(3000);
+    if (!Auth(cli, iter)) {
+      return;
+    }
     if (Send(cli, iter) && Recv(cli, iter)) {
       Info(info_log_, "Trysync master %d,%s:%d(%llu %llu) success",
           iter->first,
