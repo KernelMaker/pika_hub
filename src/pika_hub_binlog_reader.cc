@@ -127,6 +127,7 @@ void BinlogReader::DecodeBinlogContent(const rocksutil::Slice& content,
   uint8_t op = 0;
   int32_t server_id = 0;
   int32_t exec_time = 0;
+  int32_t filenum = 0;
   int32_t key_size = 0;
   int32_t value_size = 0;
 
@@ -135,16 +136,17 @@ void BinlogReader::DecodeBinlogContent(const rocksutil::Slice& content,
     op = static_cast<uint8_t>(*(content.data() + pos));
     server_id = rocksutil::DecodeFixed32(content.data() + pos + 1);
     exec_time = rocksutil::DecodeFixed32(content.data() + pos + 5);
-    key_size = rocksutil::DecodeFixed32(content.data() + pos + 9);
+    filenum = rocksutil::DecodeFixed32(content.data() + pos + 9);
+    key_size = rocksutil::DecodeFixed32(content.data() + pos + 13);
     value_size = rocksutil::DecodeFixed32(content.data() + pos
-        + 13 + key_size);
+        + 17 + key_size);
 
-    result->push_back({op, server_id, exec_time,
-        std::string(content.data() + pos + 13, key_size),
-        std::string(content.data() + pos + 17 + key_size, value_size)
+    result->push_back({op, server_id, exec_time, filenum,
+        std::string(content.data() + pos + 17, key_size),
+        std::string(content.data() + pos + 21 + key_size, value_size)
         });
 
-    pos += (17 + key_size + value_size);
+    pos += (21 + key_size + value_size);
   }
 }
 

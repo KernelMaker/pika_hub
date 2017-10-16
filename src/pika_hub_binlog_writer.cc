@@ -94,8 +94,8 @@ uint64_t BinlogWriter::GetOffsetInFile() {
 
 rocksutil::Status BinlogWriter::Append(uint8_t op, const std::string& key,
     const std::string& value, int32_t server_id,
-    int32_t exec_time) {
-  Task task(op, key, value, server_id, exec_time);
+    int32_t exec_time, int32_t filenum) {
+  Task task(op, key, value, server_id, exec_time, filenum);
   return Append(&task);
 }
 
@@ -203,12 +203,13 @@ void BinlogWriter::CacheEntityDeleter(const rocksutil::Slice& key,
 
 void BinlogWriter::EncodeBinlogContent(std::string* result,
     uint8_t op, const std::string& key, const std::string& value,
-    int32_t server_id, int32_t exec_time) {
+    int32_t server_id, int32_t exec_time, int32_t filenum) {
   result->clear();
 
   result->append(reinterpret_cast<char*>(&op), sizeof(uint8_t));
   rocksutil::PutFixed32(result, server_id);
   rocksutil::PutFixed32(result, exec_time);
+  rocksutil::PutFixed32(result, filenum);
   rocksutil::PutFixed32(result, key.size());
   result->append(key.data(), key.size());
   rocksutil::PutFixed32(result, value.size());

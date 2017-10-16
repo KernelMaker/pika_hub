@@ -31,7 +31,7 @@ class BinlogWriter {
   uint64_t GetOffsetInFile();
   rocksutil::Status Append(uint8_t op, const std::string& key,
       const std::string& value, int32_t server_id,
-      int32_t exec_time);
+      int32_t exec_time, int32_t filenum);
 
   uint64_t number() {
     return number_;
@@ -43,16 +43,17 @@ class BinlogWriter {
    public:
     Task(uint8_t op, const std::string& key,
         const std::string& value, int32_t server_id,
-        int32_t exec_time) :
+        int32_t exec_time, int32_t filenum) :
       op_(op), key_(key), server_id_(server_id),
-      exec_time_(exec_time) {
+      exec_time_(exec_time), filenum_(filenum) {
         EncodeBinlogContent(&rep_, op, key,
-            value, server_id, exec_time);
+            value, server_id, exec_time, filenum);
     }
     uint8_t op_;
     std::string key_;
     int32_t server_id_;
     int32_t exec_time_;
+    int32_t filenum_;
     std::string rep_;
   };
 
@@ -94,7 +95,7 @@ class BinlogWriter {
   rocksutil::Status Append(Task* task);
   static void EncodeBinlogContent(std::string* result,
       uint8_t op, const std::string& key, const std::string& value,
-      int32_t server_id, int32_t exec_time);
+      int32_t server_id, int32_t exec_time, int32_t filenum);
 
   rocksutil::log::Writer* writer_;
   std::string log_path_;

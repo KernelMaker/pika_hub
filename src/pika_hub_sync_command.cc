@@ -36,7 +36,8 @@ void SetCmd::DoInitial(const PikaCmdArgsType &argv,
 
 void SetCmd::Do() {
   rocksutil::Status s = g_pika_hub_server->binlog_writer()->
-    Append(kSetOPCode, key_, value_, server_id_, exec_time_);
+    Append(kSetOPCode, key_, value_, server_id_, exec_time_,
+        number_);
   if (s.ok()) {
     g_pika_hub_server->UpdateRcvOffset(server_id_,
         number_, offset_);
@@ -67,7 +68,8 @@ void DelCmd::DoInitial(const PikaCmdArgsType &argv,
 
 void DelCmd::Do() {
   rocksutil::Status s = g_pika_hub_server->binlog_writer()->
-    Append(kDelOPCode, key_, value_, server_id_, exec_time_);
+    Append(kDelOPCode, key_, value_, server_id_, exec_time_,
+        number_);
   if (s.ok()) {
     g_pika_hub_server->UpdateRcvOffset(server_id_,
         number_, offset_);
@@ -98,7 +100,8 @@ void ExpireatCmd::DoInitial(const PikaCmdArgsType &argv,
 
 void ExpireatCmd::Do() {
   rocksutil::Status s = g_pika_hub_server->binlog_writer()->
-    Append(kExpireatOPCode, key_, timestamp_, server_id_, exec_time_);
+    Append(kExpireatOPCode, key_, timestamp_, server_id_, exec_time_,
+        number_);
   if (s.ok()) {
     g_pika_hub_server->UpdateRcvOffset(server_id_,
         number_, offset_);

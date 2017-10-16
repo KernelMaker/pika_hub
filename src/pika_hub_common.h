@@ -39,6 +39,7 @@ struct BinlogFields {
   uint8_t op;
   int32_t server_id;
   int32_t exec_time;
+  int32_t filenum;
   std::string key;
   std::string value;
 };
