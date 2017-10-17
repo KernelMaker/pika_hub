@@ -8,6 +8,7 @@
 
 #include <string>
 #include <map>
+#include <atomic>
 
 enum SyncStatus {
   kShouldConnect = 0,
@@ -34,6 +35,8 @@ struct PikaStatus {
 };
 
 typedef std::map<int32_t, PikaStatus> PikaServers;
+
+typedef std::map<int32_t, std::map<int32_t, std::atomic<int32_t> > >RecoverOffsetMap;
 
 struct BinlogFields {
   uint8_t op;

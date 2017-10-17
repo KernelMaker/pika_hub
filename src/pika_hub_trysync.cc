@@ -118,7 +118,7 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
     if (reader) {
       iter->second.sender = new BinlogSender(iter->first,
           iter->second.ip, iter->second.port, info_log_, reader,
-          pika_servers_, pika_mutex_, manager_);
+          pika_servers_, pika_mutex_, recover_offset_, manager_);
       static_cast<BinlogSender*>(iter->second.sender)->StartThread();
       Info(info_log_, "Start BinlogSender[%d] success for %s:%d(%llu %llu)",
           iter->first, iter->second.ip.c_str(), iter->second.port,

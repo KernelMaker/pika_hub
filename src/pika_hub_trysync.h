@@ -25,12 +25,14 @@ class PikaHubTrysync : public pink::Thread {
     int local_port,
     PikaServers* pika_servers,
     rocksutil::port::Mutex* pika_mutex,
+    RecoverOffsetMap* recover_offset,
     BinlogManager* manager)
   : info_log_(info_log),
     local_ip_(local_ip),
     local_port_(local_port),
     pika_servers_(pika_servers),
     pika_mutex_(pika_mutex),
+    recover_offset_(recover_offset),
     manager_(manager) {}
 
   virtual ~PikaHubTrysync() {
@@ -58,6 +60,7 @@ class PikaHubTrysync : public pink::Thread {
   PikaServers* pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex* pika_mutex_;
+  RecoverOffsetMap* recover_offset_;
   BinlogManager* manager_;
 
   void Trysync(const PikaServers::iterator& iter);

@@ -88,6 +88,10 @@ void* BinlogSender::ThreadMain() {
           continue;
         }
 
+        if ((*recover_offset_)[iter->server_id][server_id_] < iter->filenum) {
+          (*recover_offset_)[iter->server_id][server_id_] = iter->filenum;
+        }
+
         rocksutil::Cache::Handle* handle = manager_->lru_cache()->Lookup(
             iter->key);
         if (handle) {

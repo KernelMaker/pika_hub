@@ -30,6 +30,10 @@ class BinlogManager {
     lru_cache_->DisownData();
   }
 
+  uint64_t number() {
+    return number_;
+  }
+
   BinlogWriter* AddWriter();
   BinlogReader* AddReader(uint64_t number, uint64_t offset,
       bool ret_at_end = false);

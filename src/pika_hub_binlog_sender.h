@@ -22,6 +22,7 @@ class BinlogSender : public pink::Thread {
     BinlogReader* reader,
     PikaServers* pika_servers,
     rocksutil::port::Mutex* pika_mutex,
+    RecoverOffsetMap* recover_offset,
     BinlogManager* manager)
   : server_id_(server_id),
     ip_(ip), port_(port),
@@ -29,6 +30,7 @@ class BinlogSender : public pink::Thread {
     reader_(reader),
     pika_servers_(pika_servers),
     pika_mutex_(pika_mutex),
+    recover_offset_(recover_offset),
     manager_(manager),
     error_times_(0) {}
 
@@ -50,6 +52,7 @@ class BinlogSender : public pink::Thread {
   PikaServers* pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex* pika_mutex_;
+  RecoverOffsetMap* recover_offset_;
   BinlogManager* manager_;
   int32_t error_times_;
 

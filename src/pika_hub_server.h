@@ -166,14 +166,14 @@ class PikaHubServer {
   bool CheckPikaServers();
   bool RecoverOffset();
   static void EncodeOffset(std::string* value,
-      uint64_t rcv_number, uint64_t rcv_offset,
-      uint64_t send_number, uint64_t send_offset);
-  static void DecodeOffset(const std::string& value,
-      uint64_t* rcv_number, uint64_t* rcv_offset,
-      uint64_t* send_number, uint64_t* send_offset);
+      const RecoverOffsetMap::iterator& iter);
+  void DecodeOffset(const std::string& value,
+      uint64_t* rcv_number, uint64_t* rcv_offset);
   PikaServers pika_servers_;
   // protect pika_servers_
   rocksutil::port::Mutex pika_mutex_;
+
+  RecoverOffsetMap recover_offset_;
 };
 
 #endif  // SRC_PIKA_HUB_SERVER_H_
