@@ -26,7 +26,7 @@ struct PikaStatus {
   int32_t hb_fd = -1;
   uint64_t rcv_number = 0;
   uint64_t rcv_offset = 0;
-  uint64_t send_number = 1;
+  uint64_t send_number = 0;
   uint64_t send_offset = 0;
   void* sender = nullptr;
   void* heartbeat = nullptr;
@@ -36,7 +36,8 @@ struct PikaStatus {
 
 typedef std::map<int32_t, PikaStatus> PikaServers;
 
-typedef std::map<int32_t, std::map<int32_t, std::atomic<int32_t> > >RecoverOffsetMap;
+typedef std::map<int32_t,
+        std::map<int32_t, std::atomic<int32_t> > > RecoverOffsetMap;
 
 struct BinlogFields {
   uint8_t op;
@@ -64,7 +65,6 @@ const char kBinlogPrefix[] = "binlog_";
 const int32_t kMaxBinlogFileSize = 100 * 1024 * 1024;
 const char kBinlogMagic[] = "__PIKA_X#$SKGI";
 
-const int32_t kMaxRecoverNums = 30;
 const int32_t kMaxRecvRollbackNums = 10;
 const int32_t kMaxRetryTimes = 10;
 const int32_t kPikaPortInterval = 1100;

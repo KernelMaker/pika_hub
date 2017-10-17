@@ -43,16 +43,6 @@ rocksutil::Status BinlogReader::ReadRecord(
         reader_offset = reader_->EndOfBufferOffset();
         while (number_ == writer_number && reader_offset == writer_offset) {
           /*
-           * if exit_at_end_ is TRUE,
-           * return directly when all the content have been read
-           * this mode is used in BinlogManager lru recovering
-           */
-          if (exit_at_end_) {
-            manager_->mutex()->Unlock();
-            return rocksutil::Status::Corruption("Exit");
-          }
-          /*
-           * if exit_at_end_ is FALSE
            * wait until new content is written or should exit;
            */
           manager_->cv()->Wait();
@@ -152,10 +142,10 @@ void BinlogReader::DecodeBinlogContent(const rocksutil::Slice& content,
 
 BinlogReader* CreateBinlogReader(const std::string& log_path,
     rocksutil::Env* env, uint64_t number, uint64_t offset,
-    BinlogManager* manager, bool ret_at_end) {
+    BinlogManager* manager) {
 
   BinlogReader* binlog_reader = new BinlogReader(nullptr, log_path, number,
-                                      env, manager, ret_at_end);
+                                      env, manager);
 
   rocksutil::log::Reader* reader = CreateReader(env,
       log_path, number, offset, binlog_reader->reporter());

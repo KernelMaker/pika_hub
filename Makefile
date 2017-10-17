@@ -183,16 +183,6 @@ BINARY = ${BINNAME}
 %.o: %.cc
 	  $(AM_V_CC)$(CXX) $(CXXFLAGS) -c $< -o $@
 
-%.d: %.cc
-	@set -e; rm -f $@; $(CXX) -MM $(CXXFLAGS) $< > $@.$$$$; \
-	sed 's,\($(notdir $*)\)\.o[ :]*,$(SRC_DIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
-	rm -f $@.$$$$
-
-ifneq ($(MAKECMDGOALS),clean)
-  -include $(LIBOBJECTS:.o=.d)
-endif
-
-
 all: $(BINARY)
 
 dbg: $(BINARY)

@@ -88,6 +88,10 @@ void* BinlogSender::ThreadMain() {
           continue;
         }
 
+        /*
+         *  the structure of recover_offset_ map is stable, and the value is
+         *  defined as atomic, so we modify the value without locking here
+         */
         if ((*recover_offset_)[iter->server_id][server_id_] < iter->filenum) {
           (*recover_offset_)[iter->server_id][server_id_] = iter->filenum;
         }

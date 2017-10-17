@@ -111,8 +111,8 @@ bool PikaHubTrysync::Recv(pink::PinkCli* cli,
   }
   iter->second.sync_status = kConnected;
   if (iter->second.sender == nullptr) {
-    uint64_t number = iter->second.send_number > 1 ?
-            iter->second.send_number - 1 : 1;
+    uint64_t number = iter->second.send_number > 0 ?
+            iter->second.send_number - 1 : 0;
     BinlogReader* reader = manager_->AddReader(number,
         0);
     if (reader) {

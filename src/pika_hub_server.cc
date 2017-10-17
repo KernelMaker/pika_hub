@@ -141,25 +141,6 @@ slash::Status PikaHubServer::Start() {
     return slash::Status::OK();
   }
 
-//  int64_t recovered_key_nums = 0;
-//  rocksutil::Status s = binlog_manager_->RecoverLruCache(&recovered_key_nums);
-//  if (!s.ok() && !s.IsNotFound()) {
-//    rocksutil::Fatal(options_.info_log, "Recover lru failed %s",
-//        s.ToString().c_str());
-//  }
-//  rocksutil::Info(options_.info_log, "Recover %lld records into lru cache",
-//      recovered_key_nums);
-
-//  for (auto iter_1 = pika_servers_.begin(); iter_1 != pika_servers_.end(); iter_1++) {
-//    for (auto iter_2 = pika_servers_.begin(); iter_2 != pika_servers_.end(); iter_2++) {
-//      if (iter_2->first == iter_1->first) {
-//        continue;
-//      }
-//      recover_offset_[iter_1->first][iter_2->first] = 0;
-//    }
-//  }
-
-
   int ret = server_thread_->StartThread();
   if (ret != 0) {
     return slash::Status::Corruption("Start server error");
@@ -177,26 +158,9 @@ slash::Status PikaHubServer::Start() {
   slash::Status floyd_status;
   bool success;
   while (!should_exit_) {
-//    PikaServers servers;
     std::string value;
     success = true;
-//    {
-//    rocksutil::MutexLock l(&pika_mutex_);
-//    servers = pika_servers_;
-//    }
-//    for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
-//        iter++) {
-//      EncodeOffset(&value,
-//          iter->second.rcv_number, iter->second.rcv_offset);
-//      floyd_status = floyd_->Write(std::to_string(iter->first),
-//          value);
-//      if (!floyd_status.ok()) {
-//        rocksutil::Warn(options_.info_log,
-//            "Write %d offset to floyd failed %s",
-//            floyd_status.ToString().c_str());
-//        success = false;
-//      }
-//    }
+
     for (auto iter = recover_offset_.begin(); iter != recover_offset_.end();
         iter++) {
       EncodeOffset(&value, iter);
@@ -406,6 +370,8 @@ bool PikaHubServer::RecoverOffset() {
    */
   slash::Status s;
   std::string value;
+  rocksutil::Info(options_.info_log, "RecoverOffset result:");
+  rocksutil::Info(options_.info_log, "--------------------");
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
       iter++) {
     s = floyd_->Read(std::to_string(iter->first), value);
@@ -419,12 +385,8 @@ bool PikaHubServer::RecoverOffset() {
     }
     DecodeOffset(value,
         &(iter->second.rcv_number), &(iter->second.rcv_offset));
-    printf("DecodeResult: %d %lu %lu\n", iter->first, iter->second.rcv_number,
-        iter->second.rcv_offset);
-
-    // BinlogSender will minus 1 from sender_number, so we plus 1 here
-    iter->second.send_number = binlog_manager_->number() + 1;
   }
+  rocksutil::Info(options_.info_log, "--------------------");
 
   return true;
 }
@@ -434,15 +396,11 @@ void PikaHubServer::EncodeOffset(std::string* value,
   value->clear();
   rocksutil::PutFixed32(value, iter->first);
   rocksutil::PutFixed32(value, iter->second.size());
-  printf("Encode: %d %lu ", iter->first, iter->second.size());
   for (auto it = iter->second.begin(); it != iter->second.end();
       it++) {
     rocksutil::PutFixed32(value, it->first);
     rocksutil::PutFixed32(value, it->second);
-    int32_t n = it->second;
-    printf("%d-%d ", it->first, n);
   }
-  printf("\n");
 }
 
 void PikaHubServer::DecodeOffset(const std::string& value,
@@ -452,7 +410,7 @@ void PikaHubServer::DecodeOffset(const std::string& value,
   pos += 4;
   int32_t num = rocksutil::DecodeFixed32(value.data() + pos);
   pos += 4;
-  printf("Decode: %d %d ", src_server_id, num);
+  std::string info_log_content = std::to_string(src_server_id) + ": ";
   int32_t dest_server_id = -1;
   int32_t number = -1;
   for (int i = 0; i < num; i++) {
@@ -460,13 +418,15 @@ void PikaHubServer::DecodeOffset(const std::string& value,
     pos += 4;
     number = rocksutil::DecodeFixed32(value.data() + pos);
     pos += 4;
-    printf("%d-%d ", dest_server_id, number);
+    info_log_content += std::to_string(dest_server_id) + "-" +
+      std::to_string(number) + " ";
     recover_offset_[src_server_id][dest_server_id] = number;
     if (*rcv_number == 0 ||
         static_cast<uint64_t>(number) < *rcv_number) {
       *rcv_number = number;
     }
   }
-  printf("\n");
+  info_log_content += "\n";
+  rocksutil::Info(options_.info_log, info_log_content.c_str());
   *rcv_offset = 0;
 }
