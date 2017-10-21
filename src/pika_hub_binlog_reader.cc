@@ -32,7 +32,8 @@ rocksutil::Status BinlogReader::ReadRecord(
   std::string scratch;
   rocksutil::Slice record;
   while (!should_exit_) {
-    ret = reader_->ReadRecord(&record, &scratch);
+    ret = reader_->ReadRecord(&record, &scratch,
+        rocksutil::log::WALRecoveryMode::kAbsoluteConsistency);
     if (ret) {
       DecodeBinlogContent(record, result);
       return rocksutil::Status::OK();

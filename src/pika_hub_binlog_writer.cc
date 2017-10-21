@@ -149,11 +149,13 @@ rocksutil::Status BinlogWriter::Append(Task* task) {
   }
 
   rocksutil::Status result;
-  {
-  rocksutil::MutexLock l(manager_->mutex());
-  result = writer_->AddRecord(rep);
-  manager_->UpdateWriterOffset(number_, GetOffsetInFile());
-  manager_->cv()->SignalAll();
+  if (!rep.empty()) {
+    {
+    rocksutil::MutexLock l(manager_->mutex());
+    result = writer_->AddRecord(rep);
+    manager_->UpdateWriterOffset(number_, GetOffsetInFile());
+    manager_->cv()->SignalAll();
+    }
   }
 
   count_--;
