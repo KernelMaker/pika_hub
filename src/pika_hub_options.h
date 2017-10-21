@@ -43,7 +43,7 @@ struct Options : public PikaHubOptions, public floyd::Options {
     Header(log, " local_ip = %s", local_ip.c_str());
     Header(log, " local_port = %d", local_port);
     Header(log, " path = %s", path.c_str());
-    Header(log, " elect_timeout_ms = %lu", elect_timeout_ms);
+    Header(log, " check_leader_us = %lu", check_leader_us);
     Header(log, " heartbeat_us = %lu", heartbeat_us);
     Header(log, " append_entries_size_once = %lu", append_entries_size_once);
     Header(log, " append_entries_count_once = %lu", append_entries_count_once);

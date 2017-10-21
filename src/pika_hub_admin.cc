@@ -72,7 +72,7 @@ void InfoCmd::Do() {
   std::time_t tt = std::chrono::system_clock::to_time_t(
         g_pika_hub_server->last_success_save_offset_time());
   tmp_stream << "last_success_save_offset_time:" << ctime_r(&tt, buf);
-  tmp_stream << g_pika_hub_server->DumpPikaServers() << "\r\n";
+  tmp_stream << g_pika_hub_server->DumpPikaServers();
 
   info.append(tmp_stream.str());
 

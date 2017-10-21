@@ -63,6 +63,7 @@ void* BinlogSender::ThreadMain() {
       if (!s.ok()) {
         Error(info_log_, "BinlogSender[%d] Send to %s:%d failed", server_id_,
             ip_.c_str(), port_);
+        printf("BinlogSender Send error: %s\n", s.ToString().c_str());
         {
         rocksutil::MutexLock l(pika_mutex_);
         auto iter = pika_servers_->find(server_id_);
@@ -82,6 +83,7 @@ void* BinlogSender::ThreadMain() {
 
     read_status = reader_->ReadRecord(&result);
     if (read_status.ok()) {
+      error_times_ = 0;
       for (auto iter = result.begin(); iter != result.end();
             iter++) {
         if (server_id_ == iter->server_id) {
@@ -167,8 +169,11 @@ void* BinlogSender::ThreadMain() {
       rocksutil::MutexLock l(pika_mutex_);
       auto iter = pika_servers_->find(server_id_);
       if (iter != pika_servers_->end()) {
+        // Must AddReader from offset 0, cause the send_offset persisted last time
+        // is not the true offset of the offset of last successfully read
+        // binlog record, see detail at rocksutil
         reader_ = manager_->AddReader(iter->second.send_number,
-            iter->second.send_offset);
+            0);
         if (reader_ == nullptr) {
           Error(info_log_, "BinlogSender[%d] AddReader error when RETRY",
               server_id_);

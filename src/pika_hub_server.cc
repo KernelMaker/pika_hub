@@ -235,6 +235,11 @@ std::string PikaHubServer::DumpPikaServers() {
         ", heartbeat_fd:" + std::to_string(iter->second.hb_fd) +
         "\r\n");
   }
+  res += "## Saved recover offset\r\n";
+  char buf[64];
+  std::time_t tt = std::chrono::system_clock::to_time_t(
+        last_success_save_offset_time_);
+  res += "last_success_save_offset_time:" + std::string(ctime_r(&tt, buf));
   for (auto iter = recover_offset_.begin(); iter != recover_offset_.end();
       iter++) {
     res += std::to_string(iter->first) + ":";
@@ -374,7 +379,7 @@ bool PikaHubServer::RecoverOffset() {
   rocksutil::Info(options_.info_log, "--------------------");
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
       iter++) {
-    s = floyd_->Read(std::to_string(iter->first), value);
+    s = floyd_->Read(std::to_string(iter->first), &value);
     if (s.IsNotFound()) {
       return true;
     }
