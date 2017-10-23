@@ -63,7 +63,6 @@ void* BinlogSender::ThreadMain() {
       if (!s.ok()) {
         Error(info_log_, "BinlogSender[%d] Send to %s:%d failed", server_id_,
             ip_.c_str(), port_);
-        printf("BinlogSender Send error: %s\n", s.ToString().c_str());
         {
         rocksutil::MutexLock l(pika_mutex_);
         auto iter = pika_servers_->find(server_id_);
@@ -169,9 +168,9 @@ void* BinlogSender::ThreadMain() {
       rocksutil::MutexLock l(pika_mutex_);
       auto iter = pika_servers_->find(server_id_);
       if (iter != pika_servers_->end()) {
-        // Must AddReader from offset 0, cause the send_offset persisted last time
-        // is not the true offset of the offset of last successfully read
-        // binlog record, see detail at rocksutil
+        // Must AddReader from offset 0, cause the send_offset persisted
+        // last time is not the true offset of the offset of last successfully
+        // read binlog record, see detail at rocksutil
         reader_ = manager_->AddReader(iter->second.send_number,
             0);
         if (reader_ == nullptr) {
