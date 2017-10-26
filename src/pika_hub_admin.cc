@@ -62,17 +62,33 @@ void InfoCmd::Do() {
   tmp_stream << "lru_cache_record_num:" <<
     g_pika_hub_server->binlog_manager()->GetLruMemUsage() << "\r\n";
 
-  tmp_stream << "# Pika-Servers\r\n";
-  uint64_t number = 0;
-  uint64_t offset = 0;
-  g_pika_hub_server->GetBinlogWriterOffset(&number, &offset);
-  tmp_stream << "binlog_writer_offset:" << number <<
-    ":" << offset << "\r\n";
-  char buf[64];
-  std::time_t tt = std::chrono::system_clock::to_time_t(
-        g_pika_hub_server->last_success_save_offset_time());
-  tmp_stream << "last_success_save_offset_time:" << ctime_r(&tt, buf);
-  tmp_stream << g_pika_hub_server->DumpPikaServers();
+  if (g_pika_hub_server->is_primary()) {
+    tmp_stream << "# Info for [Primary]\r\n";
+    tmp_stream << "# Pika-Servers\r\n";
+    uint64_t number = 0;
+    uint64_t offset = 0;
+    g_pika_hub_server->GetBinlogWriterOffset(&number, &offset);
+    tmp_stream << "binlog_writer_offset:" << number <<
+      ":" << offset << "\r\n";
+    char buf[64];
+    std::time_t tt = std::chrono::system_clock::to_time_t(
+          g_pika_hub_server->last_success_save_offset_time());
+    tmp_stream << "last_success_save_offset_time:" << ctime_r(&tt, buf);
+    tmp_stream << g_pika_hub_server->DumpPikaServers();
+  } else {
+    tmp_stream << "# Info for [Secondary]\r\n";
+    tmp_stream << " Primary-Info\r\n";
+    uint64_t lease_deadline = g_pika_hub_server->primary_lease_deadline();
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    uint64_t now = static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
+    tmp_stream << "primary: " << g_pika_hub_server->primary() << "\r\n";
+    tmp_stream << "now: " << now << "\r\n";
+    tmp_stream << "primary_lease_deadline: " << lease_deadline << "\r\n";
+    int64_t seconds_to_expire = static_cast<int64_t>(lease_deadline / 1000000 -
+        now / 1000000);
+    tmp_stream << "seconds_to_expire_lease: " << seconds_to_expire << "\r\n";
+  }
 
   info.append(tmp_stream.str());
 

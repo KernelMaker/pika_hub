@@ -81,6 +81,18 @@ class PikaHubServer {
     return statistic_data_.query_num.load();
   }
 
+  uint64_t primary_lease_deadline() {
+    return primary_lease_deadline_;
+  }
+
+  std::string primary() {
+    return primary_;
+  }
+
+  bool is_primary() {
+    return is_primary_;
+  }
+
   BinlogWriter* binlog_writer() {
     return binlog_writer_;
   }
@@ -148,7 +160,10 @@ class PikaHubServer {
   };
   StatisticData statistic_data_;
   std::atomic<bool> should_exit_;
+  std::atomic<bool> is_primary_;
   std::chrono::system_clock::time_point last_success_save_offset_time_;
+  uint64_t primary_lease_deadline_;
+  std::string primary_;
 
   floyd::Floyd* floyd_;
 
@@ -170,6 +185,12 @@ class PikaHubServer {
   void DecodeOffset(const std::string& value,
       uint64_t* rcv_number, uint64_t* rcv_offset);
   PikaServers pika_servers_;
+  slash::Status BecomePrimary();
+  void BecomeSecondary();
+  static void EncodeLease(std::string* value,
+      const std::string& holder, const uint64_t lease_deadline);
+  static void DecodeLease(const std::string& value,
+      std::string* holder, uint64_t* lease_deadline);
   // protect pika_servers_
   rocksutil::port::Mutex pika_mutex_;
 

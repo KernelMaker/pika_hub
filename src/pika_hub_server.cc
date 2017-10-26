@@ -84,7 +84,10 @@ PikaHubServer::PikaHubServer(const Options& options)
   : env_(options.env),
     options_(SanitizeOptions(options)),
     statistic_data_(options.env),
-    should_exit_(false) {
+    should_exit_(false),
+    is_primary_(false),
+    primary_lease_deadline_(0),
+    trysync_thread_(nullptr) {
   conn_factory_ = new PikaHubClientConnFactory();
   server_handler_ = new PikaHubServerHandler(this);
   server_thread_ = pink::NewHolyThread(options_.port, conn_factory_, 1000,
@@ -96,9 +99,6 @@ PikaHubServer::PikaHubServer(const Options& options)
   inner_server_thread_->set_keepalive_timeout(0);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env,
                       options_.info_log);
-  trysync_thread_ = new PikaHubTrysync(options_.info_log, options.local_ip,
-      options.port, &pika_servers_, &pika_mutex_, &recover_offset_,
-      binlog_manager_);
   binlog_writer_ = binlog_manager_->AddWriter();
 }
 
@@ -133,13 +133,6 @@ slash::Status PikaHubServer::Start() {
         result.ToString().c_str());
     return result;
   }
-  last_success_save_offset_time_ = std::chrono::system_clock::now();
-
-  RecoverOffset();
-  if (should_exit_) {
-    delete floyd_;
-    return slash::Status::OK();
-  }
 
   int ret = server_thread_->StartThread();
   if (ret != 0) {
@@ -149,34 +142,169 @@ slash::Status PikaHubServer::Start() {
   if (ret != 0) {
     return slash::Status::Corruption("Start inner_server error");
   }
-  ret = trysync_thread_->StartThread();
-  if (ret != 0) {
-    return slash::Status::Corruption("Start trysync thread error");
-  }
 
   rocksutil::Info(options_.info_log, "PikaHub Started");
-  slash::Status floyd_status;
-  bool success;
-  while (!should_exit_) {
-    std::string value;
-    success = true;
 
-    for (auto iter = recover_offset_.begin(); iter != recover_offset_.end();
-        iter++) {
-      EncodeOffset(&value, iter);
-      floyd_status = floyd_->Write(std::to_string(iter->first),
-          value);
+  slash::Status floyd_status;
+  std::string self = options_.local_ip + ":" +
+    std::to_string(options_.local_port);
+  int floyd_error = 0;
+  std::string value;
+
+  rocksutil::Info(options_.info_log, "Wait[1] for floyd electing leader...");
+  while (!should_exit_ && !floyd_->HasLeader()) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  if (!should_exit_) {
+    rocksutil::Info(options_.info_log, "floyd leader elected[1]");
+  }
+
+  while (!should_exit_) {
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    value.clear();
+    /*
+     *  1. Read the lease info;
+     */
+    floyd_status = floyd_->Read(kLeaseKey, &value);
+    bool try_update_lease = false;
+    uint64_t now = env_->NowMicros();
+    if (floyd_status.ok()) {
+      DecodeLease(value, &primary_, &primary_lease_deadline_);
+      if ((primary_ != self && primary_lease_deadline_ < now) ||
+         (primary_ == self && primary_lease_deadline_ >= now)) {
+        try_update_lease = true;
+      }
+    } else if (floyd_status.IsNotFound()) {
+      try_update_lease = true;
+    } else {
+      rocksutil::Warn(options_.info_log, "Read[1] error once[%d]: %s",
+          floyd_error + 1, floyd_status.ToString().c_str());
+      if (++floyd_error > kMaxFloydErrorTimes) {
+        rocksutil::Error(options_.info_log,
+            "Floyd error too many times, become secondary");
+        BecomeSecondary();
+      }
+      continue;
+    }
+    floyd_error = 0;
+    /*
+     *  2. if try_update_lease != true, continue;
+     */
+    if (!try_update_lease) {
+      continue;
+    }
+
+    if (!is_primary_) {
+      rocksutil::Info(options_.info_log, "lease expired, detail, primary: %s,"
+          "primary_lease_deadline: %lu, now: %lu. Start [take over process].",
+          primary_.c_str(), primary_lease_deadline_, now);
+    }
+    /*
+     *  3. update lease info, TryLock first
+     */
+    floyd_status = floyd_->TryLock(kLockName, self, kLockDuration);
+    if (floyd_status.IsCorruption() &&
+        floyd_status.ToString() == "Corruption: Lock Error") {
+      rocksutil::Info(options_.info_log, "Lock is hold by other pika_hub");
+      // floyd operation success
+      floyd_error = 0;
+      continue;
+    } else if (!floyd_status.ok()) {
+      rocksutil::Warn(options_.info_log, "Lock error once[%d]: %s",
+          floyd_error + 1, floyd_status.ToString().c_str());
+      if (++floyd_error > kMaxFloydErrorTimes) {
+        rocksutil::Error(options_.info_log,
+            "Floyd error too many times, become secondary");
+        BecomeSecondary();
+        floyd_->UnLock(kLockName, self);
+      }
+      continue;
+    }
+    floyd_error = 0;
+    if (!is_primary_) {
+      rocksutil::Info(options_.info_log,
+          "[Take over process 3-1]TryLock success");
+    }
+    /*
+     *  4. Read the lease info again;
+     */
+    value.clear();
+    bool update_lease = false;
+    floyd_status = floyd_->Read(kLeaseKey, &value);
+    now = env_->NowMicros();
+    if (floyd_status.ok()) {
+      DecodeLease(value, &primary_, &primary_lease_deadline_);
+      if ((primary_ != self && primary_lease_deadline_ < now) ||
+         (primary_ == self && primary_lease_deadline_ > now)) {
+        EncodeLease(&value, self, now + kLeaseDuration * 1000000);
+        update_lease = true;
+      }
+    } else if (floyd_status.IsNotFound()) {
+      EncodeLease(&value, self, now + kLeaseDuration * 1000000);
+      update_lease = true;
+    } else {
+      rocksutil::Warn(options_.info_log, "Read[2] error once[%d]: %s",
+          floyd_error + 1, floyd_status.ToString().c_str());
+      if (++floyd_error > kMaxFloydErrorTimes) {
+        rocksutil::Error(options_.info_log,
+            "Floyd error too many times, become secondary");
+        BecomeSecondary();
+        floyd_->UnLock(kLockName, self);
+      }
+      continue;
+    }
+    floyd_error = 0;
+    if (!is_primary_) {
+      rocksutil::Info(options_.info_log, "[Take over process 3-2]Read success");
+    }
+    /*
+     *  5. update the lease info
+     */
+    if (update_lease) {
+      floyd_status = floyd_->Write(kLeaseKey, value);
       if (!floyd_status.ok()) {
-        rocksutil::Warn(options_.info_log,
-            "Write %d offset to floyd failed %s",
-            floyd_status.ToString().c_str());
-        success = false;
+        rocksutil::Warn(options_.info_log, "Write error once[%d]: %s",
+            floyd_error + 1, floyd_status.ToString().c_str());
+        if (++floyd_error > kMaxFloydErrorTimes) {
+          rocksutil::Error(options_.info_log,
+              "Floyd error too many times, become secondary");
+          BecomeSecondary();
+          floyd_->UnLock(kLockName, self);
+        }
+        continue;
+      }
+
+      if (!is_primary_) {
+        floyd_->UnLock(kLockName, self);
+        BecomePrimary();
+        rocksutil::Info(options_.info_log,
+            "[Take over process 3-3]Write & UnLock success");
       }
     }
-    if (success) {
-      last_success_save_offset_time_ = std::chrono::system_clock::now();
+    floyd_error = 0;
+    /*
+     *  The code below is only executed by primary pika_hub
+     *  6. save the recover_offset
+     */
+    if (is_primary_) {
+      bool success = true;
+      for (auto iter = recover_offset_.begin(); iter != recover_offset_.end();
+          iter++) {
+        EncodeOffset(&value, iter);
+        floyd_status = floyd_->Write(std::to_string(iter->first),
+            value);
+        if (!floyd_status.ok()) {
+          rocksutil::Warn(options_.info_log,
+              "Write %d offset to floyd failed %s",
+              floyd_status.ToString().c_str());
+          success = false;
+        }
+      }
+      if (success) {
+        last_success_save_offset_time_ = std::chrono::system_clock::now();
+      }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(3));
   }
   delete this;
   return slash::Status::OK();
@@ -359,7 +487,7 @@ bool PikaHubServer::CheckPikaServers() {
 }
 
 bool PikaHubServer::RecoverOffset() {
-  rocksutil::Info(options_.info_log, "Wait for floyd electing leader...");
+  rocksutil::Info(options_.info_log, "Wait[2] for floyd electing leader...");
   while (!should_exit_ && !floyd_->HasLeader()) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
@@ -367,7 +495,7 @@ bool PikaHubServer::RecoverOffset() {
     rocksutil::Info(options_.info_log, "RecoverOffset, exit");
     return false;
   }
-  rocksutil::Info(options_.info_log, "floyd leader elected");
+  rocksutil::Info(options_.info_log, "floyd leader elected[2]");
 
   /*
    * We call RecoverOffset before starting, so we could modify
@@ -434,4 +562,59 @@ void PikaHubServer::DecodeOffset(const std::string& value,
   info_log_content += "\n";
   rocksutil::Info(options_.info_log, info_log_content.c_str());
   *rcv_offset = 0;
+}
+
+slash::Status PikaHubServer::BecomePrimary() {
+  is_primary_ = true;
+  last_success_save_offset_time_ = std::chrono::system_clock::now();
+
+  RecoverOffset();
+  if (should_exit_) {
+    return slash::Status::OK();
+  }
+
+  trysync_thread_ = new PikaHubTrysync(options_.info_log, options_.local_ip,
+      options_.port, &pika_servers_, &pika_mutex_, &recover_offset_,
+      binlog_manager_);
+  int ret = trysync_thread_->StartThread();
+  if (ret != 0) {
+    return slash::Status::Corruption("Start trysync thread error");
+  }
+  return slash::Status::OK();
+}
+
+void PikaHubServer::BecomeSecondary() {
+  is_primary_ = false;
+  delete trysync_thread_;
+  trysync_thread_ = nullptr;
+  {
+  rocksutil::MutexLock l(&pika_mutex_);
+  for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
+      iter++) {
+    iter->second.rcv_number = 0;
+    iter->second.rcv_offset = 0;
+    iter->second.send_number = 0;
+    iter->second.send_offset = 0;
+  }
+  }
+  for (auto iter = recover_offset_.begin(); iter != recover_offset_.end();
+      iter++) {
+    for (auto it = iter->second.begin(); it != iter->second.end(); it++) {
+      it->second = 0;
+    }
+  }
+  primary_ = "NULL";
+}
+
+void PikaHubServer::EncodeLease(std::string* value,
+    const std::string& holder, const uint64_t deadline) {
+  value->clear();
+  rocksutil::PutFixed64(value, deadline);
+  value->append(holder);
+}
+
+void PikaHubServer::DecodeLease(const std::string& value,
+    std::string* holder, uint64_t* lease_deadline) {
+  *lease_deadline = rocksutil::DecodeFixed64(value.data());
+  *holder = std::string(value.data() + 8);
 }

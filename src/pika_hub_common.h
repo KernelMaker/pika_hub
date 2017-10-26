@@ -64,9 +64,14 @@ const uint8_t kExpireatOPCode = 3;
 const char kBinlogPrefix[] = "binlog_";
 const int32_t kMaxBinlogFileSize = 100 * 1024 * 1024;
 const char kBinlogMagic[] = "__PIKA_X#$SKGI";
+const char kLockName[] = "pika_hub_lock#68";
+const char kLeaseKey[] = "pika_hub_lease#68";
 
 const int32_t kMaxRecvRollbackNums = 10;
 const int32_t kMaxRetryTimes = 10;
 const int32_t kPikaPortInterval = 1100;
+const int32_t kMaxFloydErrorTimes = 10;
+const int32_t kLockDuration = 10;
+const int32_t kLeaseDuration = 60;
 
 #endif  // SRC_PIKA_HUB_COMMON_H_
