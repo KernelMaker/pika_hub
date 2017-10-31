@@ -147,7 +147,7 @@ slash::Status PikaHubServer::Start() {
 
   slash::Status floyd_status;
   std::string self = options_.local_ip + ":" +
-    std::to_string(options_.local_port);
+    std::to_string(options_.port);
   int floyd_error = 0;
   std::string value;
 
