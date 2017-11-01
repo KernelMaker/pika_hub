@@ -99,7 +99,6 @@ PikaHubServer::PikaHubServer(const Options& options)
   inner_server_thread_->set_keepalive_timeout(0);
   binlog_manager_ = CreateBinlogManager(options.info_log_path, options.env,
                       options_.info_log);
-  binlog_writer_ = binlog_manager_->AddWriter();
 }
 
 PikaHubServer::~PikaHubServer() {
@@ -137,10 +136,6 @@ slash::Status PikaHubServer::Start() {
   int ret = server_thread_->StartThread();
   if (ret != 0) {
     return slash::Status::Corruption("Start server error");
-  }
-  ret = inner_server_thread_->StartThread();
-  if (ret != 0) {
-    return slash::Status::Corruption("Start inner_server error");
   }
 
   rocksutil::Info(options_.info_log, "PikaHub Started");
@@ -311,6 +306,10 @@ slash::Status PikaHubServer::Start() {
 }
 
 bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
+  if (!is_primary_) {
+    rocksutil::Warn(options_.info_log, "Check IP: %s failed[not primary]", ip.c_str());
+    return false;
+  }
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
       iter++) {
@@ -320,7 +319,7 @@ bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
       return true;
     }
   }
-  rocksutil::Warn(options_.info_log, "Check IP: %s failed", ip.c_str());
+  rocksutil::Warn(options_.info_log, "Check IP: %s failed[invalid ip]", ip.c_str());
   return false;
 }
 
@@ -565,28 +564,61 @@ void PikaHubServer::DecodeOffset(const std::string& value,
 }
 
 slash::Status PikaHubServer::BecomePrimary() {
+  rocksutil::Info(options_.info_log, "BecomePrimary start");
+  rocksutil::Info(options_.info_log, "BecomePrimary-1: set primary identify");
   is_primary_ = true;
   last_success_save_offset_time_ = std::chrono::system_clock::now();
 
+  rocksutil::Info(options_.info_log, "BecomePrimary-2: recover offset");
   RecoverOffset();
   if (should_exit_) {
     return slash::Status::OK();
   }
 
+  rocksutil::Info(options_.info_log,
+      "BecomePrimary-3: create new binlog_writer");
+  binlog_writer_ = binlog_manager_->AddWriter();
+
+  rocksutil::Info(options_.info_log,
+      "BecomePrimary-4: start inner_server thread");
+  int ret = inner_server_thread_->StartThread();
+  if (ret != 0) {
+    rocksutil::Error(options_.info_log,
+        "BecomePrimary-4: start inner_server thread error");
+    return slash::Status::Corruption("Start inner_server error");
+  }
+
+  rocksutil::Info(options_.info_log,
+      "BecomePrimary-5: create & start trysync thread");
   trysync_thread_ = new PikaHubTrysync(options_.info_log, options_.local_ip,
       options_.port, &pika_servers_, &pika_mutex_, &recover_offset_,
       binlog_manager_);
-  int ret = trysync_thread_->StartThread();
+  ret = trysync_thread_->StartThread();
   if (ret != 0) {
+    rocksutil::Error(options_.info_log,
+        "BecomePrimary-5: start trysync thread error");
     return slash::Status::Corruption("Start trysync thread error");
   }
+
+  rocksutil::Info(options_.info_log, "BecomePrimary done");
   return slash::Status::OK();
 }
 
 void PikaHubServer::BecomeSecondary() {
+  if (!is_primary_) {
+    // alread been secondary
+    return;
+  }
+  rocksutil::Info(options_.info_log, "BecomeSecondary start");
+  rocksutil::Info(options_.info_log,
+      "BecomeSecondary-1: reset primary identify");
   is_primary_ = false;
+  rocksutil::Info(options_.info_log,
+      "BecomeSecondary-2: delete trysync thread");
   delete trysync_thread_;
   trysync_thread_ = nullptr;
+  rocksutil::Info(options_.info_log,
+      "BecomeSecondary-3: reset pika_servers offset");
   {
   rocksutil::MutexLock l(&pika_mutex_);
   for (auto iter = pika_servers_.begin(); iter != pika_servers_.end();
@@ -597,13 +629,25 @@ void PikaHubServer::BecomeSecondary() {
     iter->second.send_offset = 0;
   }
   }
+  rocksutil::Info(options_.info_log, "BecomeSecondary-4: reset recover offset");
   for (auto iter = recover_offset_.begin(); iter != recover_offset_.end();
       iter++) {
     for (auto it = iter->second.begin(); it != iter->second.end(); it++) {
       it->second = 0;
     }
   }
+  rocksutil::Info(options_.info_log,
+      "BecomeSecondary-5: stop inner_server thread");
+  inner_server_thread_->StopThread();
+  rocksutil::Info(options_.info_log, "BecomeSecondary-6: reset binlog_writer");
+  delete binlog_writer_;
+  binlog_writer_ = nullptr;
+  rocksutil::Info(options_.info_log,
+      "BecomeSecondary-7: reset binlog_manager offset & binlog");
+  binlog_manager_->ResetOffsetAndBinlog();
   primary_ = "NULL";
+  rocksutil::Info(options_.info_log, "BecomeSecondary-8: reset primary");
+  rocksutil::Info(options_.info_log, "BecomeSecondary done");
 }
 
 void PikaHubServer::EncodeLease(std::string* value,

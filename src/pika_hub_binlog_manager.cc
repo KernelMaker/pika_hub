@@ -32,6 +32,22 @@ void BinlogManager::GetWriterOffset(uint64_t* number,
   *offset = offset_;
 }
 
+void BinlogManager::ResetOffsetAndBinlog() {
+  number_ = 0;
+  offset_ = 0;
+
+  std::vector<std::string> result;
+  rocksutil::Status s = env_->GetChildren(log_path_, &result);
+
+  std::string prefix;
+  for (auto& file : result) {
+    prefix = file.substr(0, strlen(kBinlogPrefix));
+    if (prefix == kBinlogPrefix) {
+      s = env_->DeleteFile(log_path_ + "/" + file);
+    }
+  }
+}
+
 BinlogManager* CreateBinlogManager(const std::string& log_path,
     rocksutil::Env* env, std::shared_ptr<rocksutil::Logger> info_log) {
   std::vector<std::string> result;

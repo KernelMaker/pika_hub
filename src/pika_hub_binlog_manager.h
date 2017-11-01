@@ -49,6 +49,7 @@ class BinlogManager {
     return lru_cache_->GetUsage();
   }
   rocksutil::Status RecoverLruCache(int64_t* nums);
+  void ResetOffsetAndBinlog();
 
  private:
   std::string log_path_;
