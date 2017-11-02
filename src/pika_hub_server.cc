@@ -191,8 +191,9 @@ slash::Status PikaHubServer::Start() {
     }
 
     if (!is_primary_) {
-      rocksutil::Info(options_.info_log, "lease expired, detail, primary: %s,"
-          "primary_lease_deadline: %lu, now: %lu. Start [take over process].",
+      rocksutil::Info(options_.info_log, "lease expired or no primary for now,",
+          " detail, primary: %s,",
+          " primary_lease_deadline: %lu, now: %lu. Start [take over process].",
           primary_.c_str(), primary_lease_deadline_, now);
     }
     /*
@@ -627,6 +628,7 @@ void PikaHubServer::BecomeSecondary() {
     iter->second.rcv_offset = 0;
     iter->second.send_number = 0;
     iter->second.send_offset = 0;
+    iter->second.sync_status = kShouldConnect;
   }
   }
   rocksutil::Info(options_.info_log, "BecomeSecondary-4: reset recover offset");

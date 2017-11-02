@@ -47,7 +47,11 @@ class PikaHubTrysync : public pink::Thread {
     for (auto iter = pika_servers_->begin(); iter != pika_servers_->end();
         iter++) {
       delete static_cast<BinlogSender*>(iter->second.sender);
+      iter->second.sender = nullptr;
+      iter->second.send_fd = -1;
       delete static_cast<Heartbeat*>(iter->second.heartbeat);
+      iter->second.heartbeat = nullptr;
+      iter->second.hb_fd = -1;
     }
     }
     StopThread();
