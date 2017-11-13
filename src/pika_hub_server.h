@@ -139,6 +139,10 @@ class PikaHubServer {
     should_exit_ = true;
   }
   void DisconnectPika(int32_t server_id, bool reconnect = true);
+  bool Transfer(const std::string& server_id,
+      const std::string& new_ip,
+      int32_t new_port,
+      std::string* result);
 
  private:
   rocksutil::Env* env_;

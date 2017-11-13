@@ -25,6 +25,12 @@ void InitCmdInfoTable() {
       kCmdFlagsRead | kCmdFlagsAdmin);
   cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameInfo, infoptr));
 
+  // Transfer
+  CmdInfo* transferptr = new CmdInfo(kCmdNameTransfer, 4,
+      kCmdFlagsWrite | kCmdFlagsAdmin);
+  cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameTransfer,
+        transferptr));
+
 
   // Set
   CmdInfo* setptr = new CmdInfo(kCmdNameSet, 7,
@@ -63,6 +69,11 @@ void InitCmdTable(std::unordered_map<std::string, Cmd*> *cmd_table) {
   // Info
   Cmd* infoptr = new InfoCmd();
   cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameInfo, infoptr));
+
+  // Transfer
+  Cmd* transferptr = new TransferCmd();
+  cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameTransfer,
+        transferptr));
 
 
   // Set

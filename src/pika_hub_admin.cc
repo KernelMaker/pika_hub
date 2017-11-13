@@ -96,3 +96,25 @@ void InfoCmd::Do() {
   res_.AppendContent(info);
   return;
 }
+
+void TransferCmd::DoInitial(const PikaCmdArgsType &argv,
+    const CmdInfo* const ptr_info) {
+  if (!ptr_info->CheckArg(argv.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameTransfer);
+    return;
+  }
+  server_id_ = argv[1];
+  new_ip_ = argv[2];
+  new_port_ = argv[3];
+}
+
+void TransferCmd::Do() {
+  std::string result;
+  int32_t port = std::atoi(new_port_.data());
+  bool ret = g_pika_hub_server->Transfer(server_id_, new_ip_, port, &result);
+  if (ret) {
+    res_.SetRes(CmdRes::kOk);
+  } else {
+    res_.SetRes(CmdRes::kErrOther, result);
+  }
+}

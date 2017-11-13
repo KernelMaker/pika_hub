@@ -18,6 +18,7 @@
 //  Constant for command name
 const char kCmdNamePing[] = "ping";
 const char kCmdNameInfo[] = "info";
+const char kCmdNameTransfer[] = "transfer";
 
 //  Sync command
 const char kCmdNameSet[] = "set";

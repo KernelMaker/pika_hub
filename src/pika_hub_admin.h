@@ -26,4 +26,17 @@ class InfoCmd : public Cmd {
   virtual void DoInitial(const PikaCmdArgsType &argvs,
       const CmdInfo* const ptr_info) override;
 };
+
+class TransferCmd : public Cmd {
+ public:
+  TransferCmd() {}
+  virtual void Do() override;
+
+ private:
+  virtual void DoInitial(const PikaCmdArgsType &argvs,
+      const CmdInfo* const ptr_info) override;
+  std::string server_id_;
+  std::string new_ip_;
+  std::string new_port_;
+};
 #endif  // SRC_PIKA_HUB_ADMIN_H_

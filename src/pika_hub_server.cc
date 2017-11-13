@@ -191,8 +191,8 @@ slash::Status PikaHubServer::Start() {
     }
 
     if (!is_primary_) {
-      rocksutil::Info(options_.info_log, "lease expired or no primary for now,",
-          " detail, primary: %s,",
+      rocksutil::Info(options_.info_log, "lease expired or no primary for now,"
+          " detail, primary: %s,"
           " primary_lease_deadline: %lu, now: %lu. Start [take over process].",
           primary_.c_str(), primary_lease_deadline_, now);
     }
@@ -308,7 +308,8 @@ slash::Status PikaHubServer::Start() {
 
 bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
   if (!is_primary_) {
-    rocksutil::Warn(options_.info_log, "Check IP: %s failed[not primary]", ip.c_str());
+    rocksutil::Warn(options_.info_log, "Check IP: %s failed[not primary]",
+        ip.c_str());
     return false;
   }
   rocksutil::MutexLock l(&pika_mutex_);
@@ -320,7 +321,8 @@ bool PikaHubServer::IsValidInnerClient(int fd, const std::string& ip) {
       return true;
     }
   }
-  rocksutil::Warn(options_.info_log, "Check IP: %s failed[invalid ip]", ip.c_str());
+  rocksutil::Warn(options_.info_log, "Check IP: %s failed[invalid ip]",
+      ip.c_str());
   return false;
 }
 
@@ -440,6 +442,32 @@ void PikaHubServer::DisconnectPika(int32_t server_id, bool reconnect) {
   }
 }
 
+bool PikaHubServer::Transfer(const std::string& server_id,
+    const std::string& new_ip,
+    const int32_t new_port,
+    std::string* result) {
+  result->clear();
+  int32_t id = std::atoi(server_id.c_str());
+  std::string value;
+  {
+  rocksutil::MutexLock l(&pika_mutex_);
+  auto iter = pika_servers_.find(id);
+  if (iter == pika_servers_.end()) {
+    *result = "server_id " + server_id +
+      " is not found in pika_hub";
+    return false;
+  }
+  if (iter->second.sync_status == kConnected) {
+    *result = "server_id " + server_id +
+      " is online, could not transfer";
+    return false;
+  }
+  iter->second.ip = new_ip;
+  iter->second.port = new_port;
+  }
+  return true;
+}
+
 bool PikaHubServer::CheckPikaServers() {
   std::string str = options_.pika_servers;
   char token[1024];
@@ -509,7 +537,7 @@ bool PikaHubServer::RecoverOffset() {
       iter++) {
     s = floyd_->Read(std::to_string(iter->first), &value);
     if (s.IsNotFound()) {
-      return true;
+      continue;
     }
     if (!s.ok()) {
       rocksutil::Error(options_.info_log,
