@@ -117,6 +117,7 @@ PikaHubServer::~PikaHubServer() {
   delete server_handler_;
 
   delete floyd_;
+  rocksutil::Info(options_.info_log, "pika_hub exit...");
 }
 
 slash::Status PikaHubServer::Start() {

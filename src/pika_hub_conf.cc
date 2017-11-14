@@ -5,6 +5,7 @@
 
 #include "src/pika_hub_conf.h"
 #include <string>
+#include <algorithm>
 
 PikaHubConf::PikaHubConf(const std::string& conf_path)
   : slash::BaseConf(conf_path), conf_path_(conf_path) {
@@ -26,5 +27,13 @@ int PikaHubConf::Load() {
   GetConfInt("log-file-time-to-roll", &log_file_time_to_roll_);
   GetConfInt("info-log-level", &info_log_level_);
   GetConfStr("pika-servers", &pika_servers_);
+
+  std::string str_daemonize;
+  GetConfStr("daemonize", &str_daemonize);
+  std::transform(str_daemonize.begin(), str_daemonize.end(),
+      str_daemonize.begin(), ::tolower);
+  daemonize_ = str_daemonize == "yes" ? true : false;
+
+  GetConfStr("pidfile", &pidfile_);
   return 0;
 }

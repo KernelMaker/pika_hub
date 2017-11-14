@@ -48,6 +48,35 @@ void SignalSetup() {
   signal(SIGTERM, &IntSigHandle);
 }
 
+void CloseSTD() {
+  int fd;
+  if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
+    dup2(fd, STDIN_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    close(fd);
+  }
+}
+
+void CreatePidFile(rocksutil::Env* env) {
+  /* Try to write the pid file in a best-effort way. */
+  std::string path(g_pika_hub_conf->pidfile());
+
+  size_t pos = path.find_last_of('/');
+  if (pos != std::string::npos) {
+    // mkpath(path.substr(0, pos).c_str(), 0755);
+    env->CreateDir(path.substr(0, pos));
+  } else {
+    path = "pika_hub.pid";
+  }
+
+  FILE *fp = fopen(path.c_str(), "w");
+  if (fp) {
+    fprintf(fp,"%d\n",(int)getpid());
+    fclose(fp);
+  }
+}
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     Usage();
@@ -98,13 +127,27 @@ int main(int argc, char** argv) {
 
   g_pika_hub_server = new PikaHubServer(options);
   g_pika_hub_server->DumpOptions();
+
+  if (g_pika_hub_conf->daemonize()) {
+    if (fork() != 0) {
+      exit(0); /* parent exits */
+    }
+    setsid(); /* create a new session */
+    CreatePidFile(options.env);
+    CloseSTD();
+  }
+
   slash::Status s = g_pika_hub_server->Start();
   if (!s.ok()) {
     printf("Start Server error\n");
     return -1;
   }
 
-  printf("Will Stop Server...\n");
+  if (g_pika_hub_conf->daemonize()) {
+    unlink(g_pika_hub_conf->pidfile().c_str());
+  }
+
+  printf("pika_hub exit...\n");
 
   return 0;
 }

@@ -59,6 +59,14 @@ class PikaHubConf : public slash::BaseConf {
     rocksutil::ReadLock l(&rw_mutex_);
     return pika_servers_;
   }
+  bool daemonize() {
+    rocksutil::ReadLock l(&rw_mutex_);
+    return daemonize_;
+  }
+  const std::string& pidfile() {
+    rocksutil::ReadLock l(&rw_mutex_);
+    return pidfile_;
+  }
 
   int Load();
 
@@ -74,6 +82,8 @@ class PikaHubConf : public slash::BaseConf {
   int log_file_time_to_roll_;
   int info_log_level_;
   std::string pika_servers_;
+  bool daemonize_;
+  std::string pidfile_;
 
   rocksutil::port::RWMutex rw_mutex_;
 };
