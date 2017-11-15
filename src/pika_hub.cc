@@ -72,7 +72,7 @@ void CreatePidFile(rocksutil::Env* env) {
 
   FILE *fp = fopen(path.c_str(), "w");
   if (fp) {
-    fprintf(fp,"%d\n",(int)getpid());
+    fprintf(fp, "%d\n", static_cast<int>(getpid()));
     fclose(fp);
   }
 }

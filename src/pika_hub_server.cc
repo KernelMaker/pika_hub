@@ -6,6 +6,7 @@
 #include <string>
 #include <cstring>
 #include <map>
+#include <utility>
 
 #include "src/pika_hub_server.h"
 #include "src/pika_hub_command.h"
@@ -455,7 +456,7 @@ bool PikaHubServer::Transfer(const std::string& server_id,
   auto iter = pika_servers_.find(id);
   if (iter == pika_servers_.end()) {
     *result = "server_id " + server_id +
-      " is not found in pika_hub";
+      " is not found in pika_servers";
     return false;
   }
   if (iter->second.sync_status == kConnected) {
@@ -465,6 +466,71 @@ bool PikaHubServer::Transfer(const std::string& server_id,
   }
   iter->second.ip = new_ip;
   iter->second.port = new_port;
+  }
+  return true;
+}
+
+bool PikaHubServer::Copy(const std::string& src_server_id,
+    const std::string& new_server_id,
+    const std::string& new_ip,
+    const int32_t new_port,
+    const std::string& passwd,
+    std::string* result) {
+  result->clear();
+  int32_t src_id = std::atoi(src_server_id.c_str());
+  int32_t new_id = std::atoi(new_server_id.c_str());
+
+  PikaStatus status;
+  status.server_id = new_id;
+  status.ip = new_ip;
+  status.port = new_port;
+  status.passwd = passwd;
+
+  std::string value;
+  {
+  rocksutil::MutexLock l(&pika_mutex_);
+  auto src_iter = pika_servers_.find(src_id);
+  if (src_iter == pika_servers_.end()) {
+    *result = "src_server_id " + src_server_id +
+      " is not found in pika_servers";
+    return false;
+  }
+  auto new_iter = pika_servers_.find(new_id);
+  if (new_iter != pika_servers_.end()) {
+    *result = "new_server_id " + new_server_id +
+      " is already exist in pika_servers";
+    return false;
+  }
+  status.rcv_number = src_iter->second.rcv_number;
+  status.rcv_offset = src_iter->second.rcv_offset;
+  status.send_number = src_iter->second.send_number;
+  status.send_offset = src_iter->second.send_offset;
+
+  auto recover_iter = recover_offset_.find(new_id);
+  if (recover_iter != recover_offset_.end()) {
+//    *result = "new_server_id " + new_server_id +
+//      " is already exist in recover_offset";
+//    return false;
+    rocksutil::Warn(options_.info_log, "copy: new server id %d is"
+        "already exist in recover_offset, overwrite", new_id);
+  }
+  std::map<int32_t, std::atomic<int32_t> > new_id_map;
+  for (recover_iter = recover_offset_.begin();
+      recover_iter != recover_offset_.end(); recover_iter++) {
+    if (recover_iter->first != src_id) {
+      recover_iter->second[new_id].store(recover_iter->second[src_id]);
+      new_id_map[recover_iter->first].store(
+        recover_offset_[src_id][recover_iter->first]);
+    } else {
+      recover_iter->second[new_id].store(src_iter->second.rcv_number);
+      new_id_map[recover_iter->first].store(
+          src_iter->second.rcv_number);
+    }
+  }
+
+  recover_offset_.insert(RecoverOffsetMap::value_type(new_id,
+        std::move(new_id_map)));
+  pika_servers_.insert(PikaServers::value_type(new_id, status));
   }
   return true;
 }

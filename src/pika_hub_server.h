@@ -144,6 +144,13 @@ class PikaHubServer {
       int32_t new_port,
       std::string* result);
 
+  bool Copy(const std::string& src_server_id,
+      const std::string& new_server_id,
+      const std::string& new_ip,
+      int32_t new_port,
+      const std::string& passwd,
+      std::string* result);
+
  private:
   rocksutil::Env* env_;
   const Options options_;

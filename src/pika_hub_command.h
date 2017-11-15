@@ -19,6 +19,7 @@
 const char kCmdNamePing[] = "ping";
 const char kCmdNameInfo[] = "info";
 const char kCmdNameTransfer[] = "transfer";
+const char kCmdNameCopy[] = "copy";
 
 //  Sync command
 const char kCmdNameSet[] = "set";

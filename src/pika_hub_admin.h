@@ -8,6 +8,8 @@
 #include "src/pika_hub_command.h"
 #include "src/pika_hub_client_conn.h"
 
+#include <string>
+
 class PingCmd : public Cmd {
  public:
   PingCmd() {}
@@ -38,5 +40,20 @@ class TransferCmd : public Cmd {
   std::string server_id_;
   std::string new_ip_;
   std::string new_port_;
+};
+
+class CopyCmd : public Cmd {
+ public:
+  CopyCmd() {}
+  virtual void Do() override;
+
+ private:
+  virtual void DoInitial(const PikaCmdArgsType &argvs,
+      const CmdInfo* const ptr_info) override;
+  std::string src_server_id_;
+  std::string new_server_id_;
+  std::string new_ip_;
+  std::string new_port_;
+  std::string passwd_;
 };
 #endif  // SRC_PIKA_HUB_ADMIN_H_
