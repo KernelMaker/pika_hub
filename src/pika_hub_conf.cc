@@ -28,11 +28,17 @@ int PikaHubConf::Load() {
   GetConfInt("info-log-level", &info_log_level_);
   GetConfStr("pika-servers", &pika_servers_);
 
-  std::string str_daemonize;
-  GetConfStr("daemonize", &str_daemonize);
-  std::transform(str_daemonize.begin(), str_daemonize.end(),
-      str_daemonize.begin(), ::tolower);
-  daemonize_ = str_daemonize == "yes" ? true : false;
+  std::string str;
+  GetConfStr("daemonize", &str);
+  std::transform(str.begin(), str.end(),
+      str.begin(), ::tolower);
+  daemonize_ = str == "yes" ? true : false;
+
+  str.clear();
+  GetConfStr("binlog-offset-absolute-consistency", &str);
+  std::transform(str.begin(), str.end(),
+      str.begin(), ::tolower);
+  binlog_offset_absolute_consistency_ = str == "yes" ? true : false;
 
   GetConfStr("pidfile", &pidfile_);
   return 0;

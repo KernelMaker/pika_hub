@@ -67,6 +67,9 @@ class PikaHubConf : public slash::BaseConf {
     rocksutil::ReadLock l(&rw_mutex_);
     return pidfile_;
   }
+  bool binlog_offset_absolute_consistency() {
+    return binlog_offset_absolute_consistency_;
+  }
 
   int Load();
 
@@ -84,6 +87,7 @@ class PikaHubConf : public slash::BaseConf {
   std::string pika_servers_;
   bool daemonize_;
   std::string pidfile_;
+  bool binlog_offset_absolute_consistency_;
 
   rocksutil::port::RWMutex rw_mutex_;
 };

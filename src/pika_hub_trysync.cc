@@ -66,6 +66,11 @@ bool PikaHubTrysync::Send(pink::PinkCli* cli,
   argv.push_back(std::to_string(local_port_));
   argv.push_back(std::to_string(number));
   argv.push_back(std::to_string(0));
+  if (g_pika_hub_conf->binlog_offset_absolute_consistency()) {
+    argv.push_back(std::to_string(0));
+  } else {
+    argv.push_back(std::to_string(1));
+  }
 
   pink::SerializeRedisCommand(argv, &wbuf_str);
 

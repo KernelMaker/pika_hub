@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "src/pika_hub_common.h"
+#include "src/pika_hub_conf.h"
 #include "src/pika_hub_binlog_sender.h"
 #include "src/pika_hub_heartbeat.h"
 #include "src/pika_hub_binlog_manager.h"
@@ -17,6 +18,8 @@
 #include "pink/include/pink_thread.h"
 #include "rocksutil/mutexlock.h"
 #include "rocksutil/auto_roll_logger.h"
+
+extern PikaHubConf* g_pika_hub_conf;
 
 class PikaHubTrysync : public pink::Thread {
  public:
