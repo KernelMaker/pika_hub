@@ -14,9 +14,7 @@
 class PikaHubClientConn : public pink::RedisConn {
  public:
   PikaHubClientConn(int fd, const std::string& ip_port,
-      pink::ServerThread* server_thread, void* worker_specific_data) :
-    pink::RedisConn(fd, ip_port, server_thread),
-    cmds_table_(reinterpret_cast<CmdTable*>(worker_specific_data)) {}
+      pink::ServerThread* server_thread, void* worker_specific_data); 
 
   virtual ~PikaHubClientConn() {}
 
@@ -24,6 +22,7 @@ class PikaHubClientConn : public pink::RedisConn {
 
  private:
   CmdTable* const cmds_table_;
+  bool auth_valid_;
 
   std::string DoCmd(const std::string& opt);
 };

@@ -41,5 +41,6 @@ int PikaHubConf::Load() {
   binlog_offset_absolute_consistency_ = str == "yes" ? true : false;
 
   GetConfStr("pidfile", &pidfile_);
+  GetConfStr("requirepass", &requirepass_);
   return 0;
 }

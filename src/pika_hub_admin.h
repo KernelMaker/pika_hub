@@ -56,4 +56,15 @@ class CopyCmd : public Cmd {
   std::string new_port_;
   std::string passwd_;
 };
+
+class AuthCmd : public Cmd {
+ public:
+  AuthCmd() {}
+  virtual void Do() override;
+
+ private:
+  virtual void DoInitial(const PikaCmdArgsType &argvs,
+      const CmdInfo* const ptr_info) override;
+  std::string passwd_;
+};
 #endif  // SRC_PIKA_HUB_ADMIN_H_

@@ -143,3 +143,23 @@ void CopyCmd::Do() {
     res_.SetRes(CmdRes::kErrOther, result);
   }
 }
+
+void AuthCmd::DoInitial(const PikaCmdArgsType &argv,
+    const CmdInfo* const ptr_info) {
+  if (!ptr_info->CheckArg(argv.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameAuth);
+    return;
+  }
+  passwd_ = argv[1];
+}
+
+void AuthCmd::Do() {
+  if (g_pika_hub_conf->requirepass().empty()) {
+    res_.SetRes(CmdRes::kErrOther,
+        "Client sent AUTH, but no password is set");
+  } else if (passwd_ != g_pika_hub_conf->requirepass()) {
+    res_.SetRes(CmdRes::kInvalidPwd);
+  } else {
+    res_.SetRes(CmdRes::kOk);
+  }
+}

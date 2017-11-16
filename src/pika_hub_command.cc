@@ -37,6 +37,12 @@ void InitCmdInfoTable() {
   cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameCopy,
         copyptr));
 
+  // Auth
+  CmdInfo* authptr = new CmdInfo(kCmdNameAuth, 2,
+      kCmdFlagsWrite | kCmdFlagsAdmin);
+  cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameAuth,
+        authptr));
+
 
   // Set
   CmdInfo* setptr = new CmdInfo(kCmdNameSet, 7,
@@ -85,6 +91,11 @@ void InitCmdTable(std::unordered_map<std::string, Cmd*> *cmd_table) {
   Cmd* copyptr = new CopyCmd();
   cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameCopy,
         copyptr));
+
+  // Auth
+  Cmd* authptr = new AuthCmd();
+  cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameAuth,
+        authptr));
 
 
   // Set
