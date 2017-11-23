@@ -14,7 +14,6 @@
 #include "src/pika_hub_version.h"
 #include "src/build_version.h"
 
-
 extern PikaHubServer *g_pika_hub_server;
 extern PikaHubConf *g_pika_hub_conf;
 

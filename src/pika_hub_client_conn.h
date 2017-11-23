@@ -14,7 +14,7 @@
 class PikaHubClientConn : public pink::RedisConn {
  public:
   PikaHubClientConn(int fd, const std::string& ip_port,
-      pink::ServerThread* server_thread, void* worker_specific_data); 
+      pink::ServerThread* server_thread, void* worker_specific_data);
 
   virtual ~PikaHubClientConn() {}
 

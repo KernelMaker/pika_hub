@@ -32,7 +32,37 @@ void* BinlogSender::ThreadMain() {
   std::string tmp_str;
   slash::Status s;
   std::vector<BinlogFields> result;
+  bool reset_reader = false;
   while (!should_stop()) {
+    if (reset_reader) {
+      Info(info_log_, "BinlogSender[%d] reset reader", server_id_);
+      delete reader_;
+      reader_ = nullptr;
+      {
+      rocksutil::MutexLock l(pika_mutex_);
+      auto iter = pika_servers_->find(server_id_);
+      if (iter != pika_servers_->end()) {
+        // Must AddReader from offset 0, cause the send_offset persisted
+        // last time is not the true offset of the offset of last successfully
+        // read binlog record, see detail at rocksutil
+        reader_ = manager_->AddReader(iter->second.send_number,
+            0);
+        if (reader_ == nullptr) {
+          Error(info_log_, "BinlogSender[%d] AddReader error when RETRY",
+              server_id_);
+          iter->second.send_fd = -2;
+          iter->second.sender = nullptr;
+          break;
+        }
+      } else {
+        Error(info_log_, "BinlogSender[%d] Cant Find server_id when RETRY",
+          server_id_);
+        break;
+      }
+      }
+      reset_reader = false;
+    }
+
     if (cli == nullptr) {
       cli = pink::NewRedisCli();
       cli->set_connect_timeout(1500);
@@ -61,8 +91,8 @@ void* BinlogSender::ThreadMain() {
     if (str_cmd.size() != 0) {
       s = cli->Send(&str_cmd);
       if (!s.ok()) {
-        Error(info_log_, "BinlogSender[%d] Send to %s:%d failed", server_id_,
-            ip_.c_str(), port_);
+        Error(info_log_, "BinlogSender[%d] Send to %s:%d failed: %s",
+            server_id_, ip_.c_str(), port_, s.ToString().c_str());
         {
         rocksutil::MutexLock l(pika_mutex_);
         auto iter = pika_servers_->find(server_id_);
@@ -73,8 +103,10 @@ void* BinlogSender::ThreadMain() {
         delete cli;
         cli = nullptr;
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        reset_reader = true;
+        args.clear();
+        str_cmd.clear();
         continue;
-      } else {
       }
       args.clear();
       str_cmd.clear();
@@ -145,7 +177,6 @@ void* BinlogSender::ThreadMain() {
             read_status.ToString() == "Corruption: Exit") {
       Info(info_log_, "BinlogSender[%d] Reader exit", server_id_);
     } else {
-      delete reader_;
       error_times_++;
       if (error_times_ > kMaxRetryTimes) {
         Error(info_log_, "BinlogSender[%d] ReadRecord, EXIT, error: %s",
@@ -164,28 +195,7 @@ void* BinlogSender::ThreadMain() {
       Warn(info_log_, "BinlogSender[%d] ReadRecord once[%d], RETRY, error: %s",
           server_id_, error_times_, read_status.ToString().c_str());
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
-      {
-      rocksutil::MutexLock l(pika_mutex_);
-      auto iter = pika_servers_->find(server_id_);
-      if (iter != pika_servers_->end()) {
-        // Must AddReader from offset 0, cause the send_offset persisted
-        // last time is not the true offset of the offset of last successfully
-        // read binlog record, see detail at rocksutil
-        reader_ = manager_->AddReader(iter->second.send_number,
-            0);
-        if (reader_ == nullptr) {
-          Error(info_log_, "BinlogSender[%d] AddReader error when RETRY",
-              server_id_);
-          iter->second.send_fd = -2;
-          iter->second.sender = nullptr;
-          break;
-        }
-      } else {
-        Error(info_log_, "BinlogSender[%d] Cant Find server_id when RETRY",
-          server_id_);
-        break;
-      }
-      }
+      reset_reader = true;
     }
   }
   delete cli;
