@@ -405,7 +405,7 @@ void PikaHubServer::GetBinlogWriterOffset(uint64_t* number,
 
 void PikaHubServer::DisconnectPika(int32_t server_id, bool reconnect) {
   BinlogSender* sender = nullptr;
-  Heartbeat* hb = nullptr;
+  // Heartbeat* hb = nullptr;
   /*
    * find relevant items in pika_servers_ and set its sender & hb pointer
    * to a temp sender & hb, because destroy a sender & hb may need some time,
@@ -416,7 +416,8 @@ void PikaHubServer::DisconnectPika(int32_t server_id, bool reconnect) {
   auto iter = pika_servers_.find(server_id);
   if (iter != pika_servers_.end()) {
     sender = static_cast<BinlogSender*>(iter->second.sender);
-    hb = static_cast<Heartbeat*>(iter->second.heartbeat);
+    // may cause deadlock, so I comment it
+    // hb = static_cast<Heartbeat*>(iter->second.heartbeat);
   }
   }
 
@@ -424,7 +425,7 @@ void PikaHubServer::DisconnectPika(int32_t server_id, bool reconnect) {
    *  Destroy binlog senders & hb out of the lock scope;
    */
   delete sender;
-  delete hb;
+  // delete hb;
 
   /*
    *  modify relevant items status[sender pointer & hb & kShouldConnect]

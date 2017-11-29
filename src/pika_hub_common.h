@@ -67,7 +67,7 @@ const char kBinlogMagic[] = "__PIKA_X#$SKGI";
 const char kLockName[] = "pika_hub_lock#68";
 const char kLeaseKey[] = "pika_hub_lease#68";
 
-const int32_t kMaxRecvRollbackNums = 10;
+const int32_t kMaxRecvRollbackNums = 12;
 const int32_t kMaxRetryTimes = 10;
 const int32_t kPikaPortInterval = 1100;
 const int32_t kMaxFloydErrorTimes = 10;

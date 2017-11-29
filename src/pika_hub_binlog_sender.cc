@@ -15,13 +15,15 @@
 #include "slash/include/slash_status.h"
 #include "rocksutil/cache.h"
 
-void BinlogSender::UpdateSendOffset() {
+void BinlogSender::UpdateSendOffset(uint64_t* rollback) {
   {
   rocksutil::MutexLock l(pika_mutex_);
   auto iter = pika_servers_->find(server_id_);
   if (iter != pika_servers_->end()) {
     reader_->GetOffset(&iter->second.send_number, &iter->second.send_offset);
   }
+  *rollback = iter->second.send_number > *rollback + 1 ?
+    iter->second.send_number - 1 : *rollback;
   }
 }
 void* BinlogSender::ThreadMain() {
@@ -33,9 +35,9 @@ void* BinlogSender::ThreadMain() {
   slash::Status s;
   std::vector<BinlogFields> result;
   bool reset_reader = false;
+  uint64_t rollback = 0;
   while (!should_stop()) {
     if (reset_reader) {
-      Info(info_log_, "BinlogSender[%d] reset reader", server_id_);
       delete reader_;
       reader_ = nullptr;
       {
@@ -45,7 +47,7 @@ void* BinlogSender::ThreadMain() {
         // Must AddReader from offset 0, cause the send_offset persisted
         // last time is not the true offset of the offset of last successfully
         // read binlog record, see detail at rocksutil
-        reader_ = manager_->AddReader(iter->second.send_number,
+        reader_ = manager_->AddReader(rollback,
             0);
         if (reader_ == nullptr) {
           Error(info_log_, "BinlogSender[%d] AddReader error when RETRY",
@@ -54,6 +56,8 @@ void* BinlogSender::ThreadMain() {
           iter->second.sender = nullptr;
           break;
         }
+        Info(info_log_, "BinlogSender[%d] reset reader to binlog %lu",
+            server_id_, rollback);
       } else {
         Error(info_log_, "BinlogSender[%d] Cant Find server_id when RETRY",
           server_id_);
@@ -102,7 +106,7 @@ void* BinlogSender::ThreadMain() {
         }
         delete cli;
         cli = nullptr;
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         reset_reader = true;
         args.clear();
         str_cmd.clear();
@@ -172,7 +176,7 @@ void* BinlogSender::ThreadMain() {
         str_cmd.append(tmp_str);
         args.clear();
       }
-      UpdateSendOffset();
+      UpdateSendOffset(&rollback);
     } else if (read_status.IsCorruption() &&
             read_status.ToString() == "Corruption: Exit") {
       Info(info_log_, "BinlogSender[%d] Reader exit", server_id_);

@@ -41,7 +41,7 @@ class BinlogSender : public pink::Thread {
     delete reader_;
   }
 
-  void UpdateSendOffset();
+  void UpdateSendOffset(uint64_t* rollback);
 
  private:
   int32_t server_id_;
