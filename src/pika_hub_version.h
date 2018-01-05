@@ -7,6 +7,6 @@
 
 #define PIKA_HUB_MAJOR 1
 #define PIKA_HUB_MINOR 0
-#define PIKA_HUB_PATCH 0
+#define PIKA_HUB_PATCH 1
 
 #endif  // SRC_PIKA_HUB_VERSION_H_

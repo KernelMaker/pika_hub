@@ -201,7 +201,7 @@ slash::Status PikaHubServer::Start() {
     /*
      *  3. update lease info, TryLock first
      */
-    floyd_status = floyd_->TryLock(kLockName, self, kLockDuration);
+    floyd_status = floyd_->TryLock(kLockName, self, kLockDuration * 1000);
     if (floyd_status.IsCorruption() &&
         floyd_status.ToString() == "Corruption: Lock Error") {
       rocksutil::Info(options_.info_log, "Lock is hold by other pika_hub");
@@ -302,6 +302,7 @@ slash::Status PikaHubServer::Start() {
       if (success) {
         last_success_save_offset_time_ = std::chrono::system_clock::now();
       }
+      floyd_->UnLock(kLockName, self);
     }
   }
   delete this;

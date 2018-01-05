@@ -71,7 +71,7 @@ const int32_t kMaxRecvRollbackNums = 12;
 const int32_t kMaxRetryTimes = 10;
 const int32_t kPikaPortInterval = 1100;
 const int32_t kMaxFloydErrorTimes = 10;
-const int32_t kLockDuration = 10;
-const int32_t kLeaseDuration = 60;
+const int32_t kLockDuration = 10;  // 10s
+const int32_t kLeaseDuration = 60;  // 60s
 
 #endif  // SRC_PIKA_HUB_COMMON_H_
