@@ -128,7 +128,11 @@ rocksutil::Status BinlogWriter::Append(Task* task) {
     if (handle) {
       int32_t _exec_time = static_cast<CacheEntity*>(
           manager_->lru_cache()->Value(handle))->exec_time;
-      if (last_executor->task->exec_time_ <= _exec_time) {
+      int32_t _server_id = static_cast<CacheEntity*>(
+          manager_->lru_cache()->Value(handle))->server_id;
+      if (last_executor->task->exec_time_ < _exec_time ||
+          (last_executor->task->exec_time_ == _exec_time &&
+           last_executor->task->server_id_ != _server_id)) {
         valid = false;
       }
       manager_->lru_cache()->Release(handle);
