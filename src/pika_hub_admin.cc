@@ -6,6 +6,7 @@
 
 #include <sstream>
 #include <string>
+#include <set>
 #include <ctime>
 
 #include "src/pika_hub_admin.h"
@@ -63,6 +64,12 @@ void InfoCmd::Do() {
 
   if (g_pika_hub_server->is_primary()) {
     tmp_stream << "# Info for [Primary]\r\n";
+    tmp_stream << "# Pika-Hubs\r\n";
+    std::set<std::string> nodes;
+    g_pika_hub_server->GetAllHubServers(&nodes);
+    for (auto node : nodes) {
+      tmp_stream << node << "\r\n";
+    }
     tmp_stream << "# Pika-Servers\r\n";
     uint64_t number = 0;
     uint64_t offset = 0;
@@ -155,10 +162,60 @@ void AuthCmd::DoInitial(const PikaCmdArgsType &argv,
 void AuthCmd::Do() {
   if (g_pika_hub_conf->requirepass().empty()) {
     res_.SetRes(CmdRes::kErrOther,
-        "Client sent AUTH, but no password is set");
+        "Client sent AUTH, but no password set");
   } else if (passwd_ != g_pika_hub_conf->requirepass()) {
     res_.SetRes(CmdRes::kInvalidPwd);
   } else {
     res_.SetRes(CmdRes::kOk);
   }
+}
+
+void AddCmd::DoInitial(const PikaCmdArgsType &argv,
+    const CmdInfo* const ptr_info) {
+  if (!ptr_info->CheckArg(argv.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameAdd);
+    return;
+  }
+  addr_ = argv[1];
+}
+
+void AddCmd::Do() {
+  if (g_pika_hub_server->is_primary()) {
+    bool ret = g_pika_hub_server->AddHubServer(addr_);
+    if (ret) {
+      res_.SetRes(CmdRes::kOk);
+    } else {
+      res_.SetRes(CmdRes::kErrOther,
+            "Add pika hub failed");
+    }
+  } else {
+    res_.SetRes(CmdRes::kErrOther,
+        "This operation is only allowed for the primary node");
+  }
+  return;
+}
+
+void RemoveCmd::DoInitial(const PikaCmdArgsType &argv,
+    const CmdInfo* const ptr_info) {
+  if (!ptr_info->CheckArg(argv.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameRemove);
+    return;
+  }
+  addr_ = argv[1];
+}
+
+void RemoveCmd::Do() {
+  if (g_pika_hub_server->is_primary()) {
+    bool ret = g_pika_hub_server->RemoveHubServer(addr_);
+    if (ret) {
+      res_.SetRes(CmdRes::kOk);
+    } else {
+      res_.SetRes(CmdRes::kErrOther,
+            "Remove pika hub failed");
+    }
+  } else {
+    res_.SetRes(CmdRes::kErrOther,
+        "This operation is only allowed for the primary node");
+  }
+  return;
 }

@@ -21,6 +21,8 @@ const char kCmdNameInfo[] = "info";
 const char kCmdNameTransfer[] = "transfer";
 const char kCmdNameCopy[] = "copy";
 const char kCmdNameAuth[] = "auth";
+const char kCmdNameAdd[]  = "add";
+const char kCmdNameRemove[] = "remove";
 
 //  Sync command
 const char kCmdNameSet[] = "set";

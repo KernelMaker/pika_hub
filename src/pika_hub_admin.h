@@ -67,4 +67,27 @@ class AuthCmd : public Cmd {
       const CmdInfo* const ptr_info) override;
   std::string passwd_;
 };
+
+class AddCmd : public Cmd {
+ public:
+  AddCmd() {}
+  virtual void Do() override;
+
+ private:
+  virtual void DoInitial(const PikaCmdArgsType &argvs,
+      const CmdInfo* const ptr_info) override;
+  std::string addr_;
+};
+
+class RemoveCmd : public Cmd {
+ public:
+  RemoveCmd() {}
+  virtual void Do() override;
+
+ private:
+  virtual void DoInitial(const PikaCmdArgsType &argvs,
+      const CmdInfo* const ptr_info) override;
+  std::string addr_;
+};
+
 #endif  // SRC_PIKA_HUB_ADMIN_H_

@@ -43,6 +43,17 @@ void InitCmdInfoTable() {
   cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameAuth,
         authptr));
 
+  // Add
+  CmdInfo* addptr = new CmdInfo(kCmdNameAdd, 2,
+      kCmdFlagsWrite | kCmdFlagsAdmin);
+  cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameAdd,
+        addptr));
+
+  // Remove
+  CmdInfo* removeptr = new CmdInfo(kCmdNameRemove, 2,
+      kCmdFlagsWrite | kCmdFlagsAdmin);
+  cmd_infos.insert(std::pair<std::string, CmdInfo*>(kCmdNameRemove,
+        removeptr));
 
   // Set
   CmdInfo* setptr = new CmdInfo(kCmdNameSet, 7,
@@ -96,6 +107,16 @@ void InitCmdTable(std::unordered_map<std::string, Cmd*> *cmd_table) {
   Cmd* authptr = new AuthCmd();
   cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameAuth,
         authptr));
+
+  // Add
+  Cmd* addptr = new AddCmd();
+  cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameAdd,
+        addptr));
+
+  // Remove
+  Cmd* removeptr = new RemoveCmd();
+  cmd_table->insert(std::pair<std::string, Cmd*>(kCmdNameRemove,
+        removeptr));
 
 
   // Set

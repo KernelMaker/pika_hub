@@ -6,6 +6,7 @@
 #include <string>
 #include <cstring>
 #include <map>
+#include <set>
 #include <utility>
 
 #include "src/pika_hub_server.h"
@@ -535,6 +536,31 @@ bool PikaHubServer::Copy(const std::string& src_server_id,
   pika_servers_.insert(PikaServers::value_type(new_id, status));
   }
   return true;
+}
+
+bool PikaHubServer::AddHubServer(const std::string& server_addr) {
+  assert(is_primary_);
+  slash::Status s = floyd_->AddServer(server_addr);
+  if (s.ok()) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool PikaHubServer::RemoveHubServer(const std::string& server_addr) {
+  assert(is_primary_);
+  slash::Status s = floyd_->RemoveServer(server_addr);
+  if (s.ok()) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void PikaHubServer::GetAllHubServers(std::set<std::string>* nodes) {
+  assert(is_primary_);
+  floyd_->GetAllServers(nodes);
 }
 
 bool PikaHubServer::CheckPikaServers() {

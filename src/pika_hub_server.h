@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <chrono>
+#include <set>
 
 #include "src/pika_hub_options.h"
 #include "src/pika_hub_common.h"
@@ -150,6 +151,12 @@ class PikaHubServer {
       int32_t new_port,
       const std::string& passwd,
       std::string* result);
+
+  bool AddHubServer(const std::string& server_addr);
+
+  bool RemoveHubServer(const std::string& server_addr);
+
+  void GetAllHubServers(std::set<std::string>* nodes);
 
  private:
   rocksutil::Env* env_;
